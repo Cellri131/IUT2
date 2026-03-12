@@ -29,14 +29,27 @@ OUTPUT_DIR="$PROJECT_ROOT/site"
 
 mkdir -p "$OUTPUT_DIR"
 
-# Écrire les identifiants dans un fichier temporaire pour éviter qu'ils
-# apparaissent dans la liste des processus (ps aux).
-WGETRC_TMP="$(mktemp)"
 COOKIE_JAR="$(mktemp)"
-chmod 600 "$WGETRC_TMP" "$COOKIE_JAR"
-printf 'http_user=%s\nhttp_passwd=%s\n' "$SITE_USER" "$SITE_PASSWORD" > "$WGETRC_TMP"
-export WGETRC="$WGETRC_TMP"
-trap 'rm -f "$WGETRC_TMP" "$COOKIE_JAR"' EXIT
+chmod 600 "$COOKIE_JAR"
+trap 'rm -f "$COOKIE_JAR"' EXIT
+
+# Options wget communes (auth + cookies + exclusions)
+WGET_OPTS=(
+  --http-user="$SITE_USER"
+  --http-password="$SITE_PASSWORD"
+  --auth-no-challenge
+  --no-check-certificate
+  --keep-session-cookies
+  --save-cookies="$COOKIE_JAR"
+  --load-cookies="$COOKIE_JAR"
+  -e robots=off
+  --reject-regex='.*((/[Jj][Dd][Kk]|[Jj]ava[Dd]oc|java-doc|docs/api|apidocs|jdoc)|/pedago/Enseignement/).*'
+  --exclude-directories=/jdk,/JDK,/javadoc,/apidocs,/pedago/Enseignement
+  --timeout=60
+  --tries=3
+  --wait=0.5
+  --random-wait
+)
 
 echo "==> Démarrage du miroir de $SITE_URL"
 
@@ -50,60 +63,38 @@ wget \
   --level=inf \
   --no-parent \
   --directory-prefix="$OUTPUT_DIR" \
-  --no-check-certificate \
-  --auth-no-challenge \
-  --keep-session-cookies \
-  --save-cookies="$COOKIE_JAR" \
-  --load-cookies="$COOKIE_JAR" \
-  -e robots=off \
-  --reject-regex='.*((/[Jj][Dd][Kk]|[Jj]ava[Dd]oc|java-doc|docs/api|apidocs|jdoc)|/pedago/Enseignement/).*' \
-  --exclude-directories=/jdk,/JDK,/javadoc,/apidocs,/pedago/Enseignement \
   --follow-tags=a,area,img,link,script \
-  --timeout=30 \
-  --tries=3 \
-  --wait=0.5 \
-  --random-wait \
+  "${WGET_OPTS[@]}" \
   "$SITE_URL" \
   2>&1 | tee "$PROJECT_ROOT/crawl.log" || true
 
-# Phase 2 : extraire les liens depuis les fichiers XML (sitemaps, index.xml, etc.)
-# wget ne parse pas les XML → on extrait les URLs manuellement et on les télécharge
+# Phase 2 : extraire les liens depuis les fichiers XML (index.xml, etc.)
+# wget ne parse pas les XML → on extrait les URLs et on les télécharge
 MIRROR_DIR="$OUTPUT_DIR/diw.iut.univ-lehavre.fr"
 if [ -d "$MIRROR_DIR" ]; then
-  echo "==> Phase 2 : extraction des liens depuis les fichiers XML..."
+  echo "==> Phase 2 : extraction des liens depuis les fichiers XML/HTML..."
   URL_LIST="$(mktemp)"
-  trap 'rm -f "$WGETRC_TMP" "$COOKIE_JAR" "$URL_LIST"' EXIT
+  trap 'rm -f "$COOKIE_JAR" "$URL_LIST"' EXIT
 
-  # Cherche les URLs dans tous les .xml téléchargés
-  find "$MIRROR_DIR" -name '*.xml' -o -name '*.xml.html' 2>/dev/null | while read -r xmlfile; do
-    grep -oP '(?:href|src|loc)=["]\Khttps?://diw\.iut\.univ-lehavre\.fr[^"<>\s]*' "$xmlfile" 2>/dev/null || true
-    grep -oP '<loc>\K[^<]+' "$xmlfile" 2>/dev/null || true
-  done | sed "s/'//g" | sort -u | grep -v -iE '(jdk|javadoc|java-doc|apidocs|/pedago/Enseignement/)' > "$URL_LIST" || true
+  # Extraire toutes les URLs du même domaine depuis XML et HTML
+  find "$MIRROR_DIR" \( -name '*.xml' -o -name '*.xml.html' -o -name '*.html' -o -name '*.htm' \) 2>/dev/null | while read -r f; do
+    grep -oiP 'https?://diw\.iut\.univ-lehavre\.fr[^"'"'"'<>\s)]*' "$f" 2>/dev/null || true
+  done | sort -u | grep -v -iE '(jdk|javadoc|java-doc|apidocs|/pedago/Enseignement/)' > "$URL_LIST" || true
 
   if [ -s "$URL_LIST" ]; then
     EXTRA_COUNT=$(wc -l < "$URL_LIST")
-    echo "    → $EXTRA_COUNT URL(s) trouvées dans les XML"
+    echo "    → $EXTRA_COUNT URL(s) trouvées"
     wget \
       --no-clobber \
       --convert-links \
       --adjust-extension \
       --page-requisites \
       --directory-prefix="$OUTPUT_DIR" \
-      --no-check-certificate \
-      --auth-no-challenge \
-      --keep-session-cookies \
-      --save-cookies="$COOKIE_JAR" \
-      --load-cookies="$COOKIE_JAR" \
-      -e robots=off \
-      --reject-regex='.*((/[Jj][Dd][Kk]|[Jj]ava[Dd]oc|java-doc|docs/api|apidocs|jdoc)|/pedago/Enseignement/).*' \
-      --timeout=30 \
-      --tries=3 \
-      --wait=0.5 \
-      --random-wait \
+      "${WGET_OPTS[@]}" \
       --input-file="$URL_LIST" \
       2>&1 | tee -a "$PROJECT_ROOT/crawl.log" || true
   else
-    echo "    → Aucune URL supplémentaire trouvée dans les XML"
+    echo "    → Aucune URL supplémentaire trouvée"
   fi
 fi
 
