@@ -37,8 +37,8 @@ jobs:
       # 3. Crawler le site avec wget (miroir incrémental)
       - name: Crawl site
         env:
-          SITE_USER: ${{ secrets.SITE_USER }}
-          SITE_PASSWORD: ${{ secrets.SITE_PASSWORD }}
+          SITE_USER: etInfo
+          SITE_PASSWORD: "t[0]!=1"
         run: |
           chmod +x scripts/crawl.sh
           bash scripts/crawl.sh
