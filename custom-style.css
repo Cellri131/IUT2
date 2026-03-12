@@ -1,0 +1,77 @@
+/* =============================================================
+   custom-style.css  –  Style personnalisé pour le site2 (miroir)
+   
+   Cette feuille de style est injectée automatiquement dans
+   chaque page HTML du miroir. Elle est chargée APRÈS les styles
+   originaux, donc les règles ici ont priorité.
+   
+   Modifiez librement ce fichier pour personnaliser le rendu.
+   ============================================================= */
+
+/* ---------- Variables de couleurs (thème alternatif) ---------- */
+:root {
+  --custom-primary: #2563eb;
+  --custom-primary-dark: #1d4ed8;
+  --custom-accent: #f59e0b;
+  --custom-bg: #f8fafc;
+  --custom-text: #1e293b;
+  --custom-text-light: #64748b;
+  --custom-border: #e2e8f0;
+}
+
+/* ---------- Typographie ---------- */
+body {
+  font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+  color: var(--custom-text);
+  background-color: var(--custom-bg);
+}
+
+/* ---------- Liens ---------- */
+a {
+  color: var(--custom-primary);
+}
+
+a:hover,
+a:focus {
+  color: var(--custom-primary-dark);
+}
+
+/* ---------- En-tête / Header ---------- */
+header,
+.header,
+#header,
+nav,
+.navbar {
+  background-color: var(--custom-primary) !important;
+  color: #fff !important;
+}
+
+header a,
+.header a,
+nav a,
+.navbar a {
+  color: #fff !important;
+}
+
+/* ---------- Pied de page / Footer ---------- */
+footer,
+.footer,
+#footer {
+  background-color: var(--custom-text) !important;
+  color: var(--custom-text-light) !important;
+}
+
+/* ---------- Bannière info site miroir ---------- */
+body::before {
+  content: "🔄 Site miroir – version alternative";
+  display: block;
+  background: var(--custom-accent);
+  color: #000;
+  text-align: center;
+  padding: 6px 12px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  position: sticky;
+  top: 0;
+  z-index: 99999;
+}
