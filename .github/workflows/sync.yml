@@ -25,7 +25,11 @@ jobs:
         with:
           fetch-depth: 0
 
-      # 2. Crawler le site avec wget
+      # 2. Installer les dépendances Python
+      - name: Install Python dependencies
+        run: pip install requests
+
+      # 3. Crawler le site avec le crawler Python
       - name: Crawl site
         env:
           SITE_USER: etInfo
@@ -44,6 +48,13 @@ jobs:
           else
             echo "⚠ Répertoire miroir introuvable : $MIRROR_DIR"
             exit 1
+          fi
+
+      # 5. Copier link.data dans le miroir
+      - name: Copy link.data
+        run: |
+          if [ -f "site/link.data" ]; then
+            cp site/link.data site/diw.iut.univ-lehavre.fr/link.data
           fi
 
       # 5. Injecter le lien CSS dans tous les fichiers HTML
