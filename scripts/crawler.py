@@ -17,9 +17,13 @@ import random
 import urllib.parse
 from pathlib import Path
 
+import urllib3
 import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
+
+# Supprimer les warnings SSL (certificat non vérifié)
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 # ── Configuration ───────────────────────────────────────────────
 START_URL = "https://diw.iut.univ-lehavre.fr/pedago/index.xml"
@@ -93,6 +97,9 @@ def extract_links(content: str, base_url: str) -> list:
             if not raw or raw.startswith("#") or raw.startswith("javascript:"):
                 continue
             if raw.startswith("mailto:"):
+                continue
+            # Ignorer les expressions XSL/XSLT ({$var}, {@attr}, {.}, etc.)
+            if "{" in raw or "}" in raw:
                 continue
             # Résoudre les URLs relatives
             absolute = urllib.parse.urljoin(base_url, raw)
