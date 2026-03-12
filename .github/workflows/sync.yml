@@ -25,16 +25,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      # 2. Restaurer le cache du miroir précédent (pour mise à jour incrémentale)
-      - name: Restore mirror cache
-        uses: actions/cache@v4
-        with:
-          path: site
-          key: mirror-cache-${{ github.run_id }}
-          restore-keys: |
-            mirror-cache-
-
-      # 3. Crawler le site avec wget (miroir incrémental)
+      # 2. Crawler le site avec wget
       - name: Crawl site
         env:
           SITE_USER: etInfo
