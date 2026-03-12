@@ -1,0 +1,72 @@
+name: Sync Mirror Site
+
+on:
+  # Exécution planifiée : tous les jours à 4h du matin (UTC)
+  schedule:
+    - cron: "0 4 * * *"
+  # Possibilité de lancer manuellement depuis l'onglet Actions
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: sync-mirror
+  cancel-in-progress: true
+
+jobs:
+  crawl-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Checkout du dépôt
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # 2. Restaurer le cache du miroir précédent (pour mise à jour incrémentale)
+      - name: Restore mirror cache
+        uses: actions/cache@v4
+        with:
+          path: site
+          key: mirror-cache-${{ github.run_id }}
+          restore-keys: |
+            mirror-cache-
+
+      # 3. Crawler le site avec wget (miroir incrémental)
+      - name: Crawl site
+        env:
+          SITE_USER: ${{ secrets.SITE_USER }}
+          SITE_PASSWORD: ${{ secrets.SITE_PASSWORD }}
+        run: |
+          chmod +x scripts/crawl.sh
+          bash scripts/crawl.sh
+
+      # 4. Copier la CSS custom dans le répertoire du site miroir
+      - name: Copy custom CSS
+        run: |
+          MIRROR_DIR="site/diw.iut.univ-lehavre.fr"
+          if [ -d "$MIRROR_DIR" ]; then
+            cp assets/custom-style.css "$MIRROR_DIR/custom-style.css"
+            echo "CSS copiée dans $MIRROR_DIR"
+          else
+            echo "⚠ Répertoire miroir introuvable : $MIRROR_DIR"
+            exit 1
+          fi
+
+      # 5. Injecter le lien CSS dans tous les fichiers HTML
+      - name: Inject custom CSS
+        run: |
+          python3 scripts/inject_css.py site/diw.iut.univ-lehavre.fr
+
+      # 6. Déployer sur GitHub Pages
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./site/diw.iut.univ-lehavre.fr
+          force_orphan: false
+          commit_message: "sync: mise à jour miroir"
