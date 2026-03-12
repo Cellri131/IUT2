@@ -34,7 +34,7 @@ mkdir -p "$OUTPUT_DIR"
 WGETRC_TMP="$(mktemp)"
 COOKIE_JAR="$(mktemp)"
 chmod 600 "$WGETRC_TMP" "$COOKIE_JAR"
-printf 'http_user=%s\nhttp_password=%s\n' "$SITE_USER" "$SITE_PASSWORD" > "$WGETRC_TMP"
+printf 'http_user=%s\nhttp_passwd=%s\n' "$SITE_USER" "$SITE_PASSWORD" > "$WGETRC_TMP"
 export WGETRC="$WGETRC_TMP"
 trap 'rm -f "$WGETRC_TMP" "$COOKIE_JAR"' EXIT
 
