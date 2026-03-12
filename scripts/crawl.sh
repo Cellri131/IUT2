@@ -76,9 +76,9 @@ if [ -d "$MIRROR_DIR" ]; then
 
   # Cherche les URLs dans tous les .xml téléchargés
   find "$MIRROR_DIR" -name '*.xml' -o -name '*.xml.html' 2>/dev/null | while read -r xmlfile; do
-    grep -oP '(?:href|src|loc)=["\x27]?\Khttps?://diw\.iut\.univ-lehavre\.fr[^"\x27<>\s]*' "$xmlfile" 2>/dev/null || true
+    grep -oP '(?:href|src|loc)=["]\Khttps?://diw\.iut\.univ-lehavre\.fr[^"<>\s]*' "$xmlfile" 2>/dev/null || true
     grep -oP '<loc>\K[^<]+' "$xmlfile" 2>/dev/null || true
-  done | sort -u | grep -v -iE '(jdk|javadoc|java-doc|apidocs|/pedago/Enseignement/)' > "$URL_LIST" || true
+  done | sed "s/'//g" | sort -u | grep -v -iE '(jdk|javadoc|java-doc|apidocs|/pedago/Enseignement/)' > "$URL_LIST" || true
 
   if [ -s "$URL_LIST" ]; then
     EXTRA_COUNT=$(wc -l < "$URL_LIST")
