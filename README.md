@@ -56,9 +56,9 @@ Dans **Settings → Secrets and variables → Actions**, ajouter :
 # Installer wget si nécessaire (Linux/Mac : déjà installé)
 # Windows : utiliser WSL ou Git Bash
 
-# Définir les identifiants
-export SITE_USER="etInfo"
-export SITE_PASSWORD='t[0]!=1'
+# Définir les identifiants (ne jamais les mettre en dur dans le code)
+export SITE_USER="<VOTRE_IDENTIFIANT>"
+export SITE_PASSWORD='<VOTRE_MOT_DE_PASSE>'
 
 # Lancer le crawl
 bash scripts/crawl.sh

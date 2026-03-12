@@ -29,6 +29,14 @@ OUTPUT_DIR="$PROJECT_ROOT/site"
 
 mkdir -p "$OUTPUT_DIR"
 
+# Écrire les identifiants dans un fichier temporaire pour éviter qu'ils
+# apparaissent dans la liste des processus (ps aux).
+WGETRC_TMP="$(mktemp)"
+chmod 600 "$WGETRC_TMP"
+printf 'http_user=%s\nhttp_password=%s\n' "$SITE_USER" "$SITE_PASSWORD" > "$WGETRC_TMP"
+export WGETRC="$WGETRC_TMP"
+trap 'rm -f "$WGETRC_TMP"' EXIT
+
 echo "==> Démarrage du miroir de $SITE_URL"
 
 wget \
@@ -38,11 +46,9 @@ wget \
   --page-requisites \
   --no-parent \
   --directory-prefix="$OUTPUT_DIR" \
-  --http-user="$SITE_USER" \
-  --http-password="$SITE_PASSWORD" \
   --no-check-certificate \
-  --reject-regex='.*(/jdk|/JDK|javadoc|java-doc|docs/api).*' \
-  --exclude-directories='*/jdk*,*/JDK*,*/javadoc*' \
+  --reject-regex='.*(/[Jj][Dd][Kk]|[Jj]ava[Dd]oc|java-doc|docs/api|apidocs|jdoc).*' \
+  --exclude-directories='*/jdk*,*/JDK*,*/javadoc*,*/apidocs*' \
   --timeout=30 \
   --tries=3 \
   --wait=0.5 \
