@@ -1,0 +1,251 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+
+<!DOCTYPE document SYSTEM "./css/index.dtd">
+
+<?xml-stylesheet type="text/xsl" href="./css/indexV2.xsl"?>
+      
+<document>
+
+   <propriete repertoireRac="./" style="java" />
+
+   <entete-gene annee="2015-2016" >
+  
+
+      </entete-gene>
+
+   <cadre type="simple">
+	<cellule>
+		<lien dest="./divers/planning entretiens individuels.pdf">Planning Entretien Individuel Octobre</lien>
+	</cellule>
+   
+   </cadre>
+	<!--
+   <cadre type="double">
+   	<cellule titre="Protocole Covid">
+   		<para>
+   			Conduite à tenir : <br /><br />
+				
+			   <puce /> <lien dest="./administration/documents/cat_en_cas_de_sympto_mes_17092020.pdf"      >Devant l’apparition de symptômes de la Covid-19                    </lien><br />
+			   <puce /> <lien dest="./administration/documents/cat_en_cas_de_contact_a_risque_17092020.pdf">Si vous êtes personne contact d’un cas de la Covid-19              </lien><br />
+			   <puce /> <lien dest="./administration/documents/cat_en_cas_de_test_positif_17092020.pdf"    >Si vous venez de recevoir le résultat d’un test RT-PCR de dépistage</lien><br /><br />
+			   
+			   Voici le mail à utiliser pour informer votre composante : <br />
+			   scolaritecovid-iut@univ-lehavre.fr<br /><br />
+			   
+			   Dans le cadre normal de la gestion des absences, informer également le secrétariat et 
+			   votre directeur d'études (cf procédure <lien image="aucune" dest="./reglement/absence.xml">Absences</lien>)  
+   		
+   		</para>
+   	
+   	</cellule>
+   
+
+         	<cellule titre="Confinement Octobre 2020">
+							<para>
+								<g>14/11/2020</g> :<br /><br />
+								Les DS se feront donc en présentiel.
+								Vous recrevrez pour chaque cession, une convocation pour vous déplacer.<br />
+								Il faudra également vous munir de : <br />
+								¨¨¨- L'attestation de déplacement dérogatoire (reçu le 14/11 par mail)<br />
+								¨¨¨- Votre Certificat de scolarité<br />
+								¨¨¨- Votre Léo Carte<br />
+								¨¨¨- Une pièce d'identité<br />
+								¨¨¨- Votre Attestation individuelle<br /><br />
+								
+								Les DS sont palnnifiés sur hyperplanning Avec la mention EN PRESENTIEL.<br />
+								Si vous disposez d'un petit écran cliquez sur le cours pour voir le détail.<br /><br />
+								
+								<i>Philippe Le Pivert</i><br /><br />
+							
+								Anciens Messages : <lien dest="./confinement/message_28_10_2020.txt">28/10/2020</lien>¨¨¨
+								                   <lien dest="./confinement/message_01_11_2020.txt">01/11/2020</lien>¨¨¨
+								                   <lien dest="./confinement/message_10_11_2020.txt">10/11/2020</lien>
+							
+							</para>
+		</cellule>	
+
+   </cadre>
+   -->
+   <!--
+	<cadre type="simple">
+		<cellule titre="Info diverses">
+			<lien image="aucune" dest="./divers/HP semaine 1 info1 2024.pdf"   > Emploi du temps info1 de la première semaine </lien>  <br /><br />
+			
+			<lien image="aucune" dest="./divers/groupe info2 2024.pdf" > Groupes info2 </lien>  <br />
+			<lien image="aucune" dest="./divers/groupe info3 2024.pdf" > Groupes info3 </lien>  <br /><br />
+		</cellule>
+	</cadre>
+	-->
+	<cadre type="vide">
+		<center><image fichier="./image/deco/bandeau.png" /></center>
+	</cadre>
+	
+	
+   <cadre type="double" >
+    
+    <!-- - - - - - - - - - - - -->
+    <!--    CADRE REGLEMENT    -->
+    <!-- - - - - - - - - - - - -->
+    <cellule titre="Réglement">
+    	<tableau>
+    		<ligne>
+    
+     			
+     			
+     			<case>
+					<center><image fichier="./image/deco/moy3.png" />  </center>
+										
+     			</case>
+     			
+        		<!--<case>¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨</case>-->
+    			
+    			
+    			
+    			<case>
+      		  <puce /> <lien image="aucune" dest="./reglement/RGE IUT 120625.pdf"   > Règlement Intérieur de l'IUT    </lien>  <br />
+      		  <puce /> <lien image="aucune" dest="./reglement/charte.xml"           > Charte                          </lien>  <br />
+      		  <puce /> <lien image="aucune" dest="./reglement/absence.xml"          > Absences                        </lien>  <br />
+      		  <puce /> <lien image="aucune" dest="./reglement/epreuve_ds.pdf"       > Les épreuves communes (salle de DS ou Machine)    </lien>  <br />
+      		</case>
+      	</ligne>
+      </tableau>
+    </cellule>
+    
+    <!-- - - - - - - - - - - - -->
+    <!--   CADRE RESSOURCE DI  -->
+    <!-- - - - - - - - - - - - -->
+       <cellule titre="Infos" >
+       
+       <tableau>
+       	<ligne>
+       		
+       		
+       		<case>
+       			<center><image fichier="./image/deco/moy4.png" />  </center>
+       		</case>
+       		<!--<case>¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨</case>-->
+       		
+       		
+       		<case>
+       
+					<para>
+					<puce /> <lien image="aucune" dest="./infos/direction.xml" >L'équipe de direction du département (Chef de dept/directeurs études/secrétariat)</lien>
+					<br />
+					<puce /><lien image="aucune" dest="./infos/conseil.xml" >Conseil de Département</lien>
+					<br /><br />
+         				
+					
+					 <puce /> <lien image="aucune" dest="intranetPermanent/PPN_Informatique.pdf" >PPN : Programme Pédagogique National</lien>    <br /> 
+					<puce /> <lien image="aucune" dest="./connexion/connexion.xml"                         > Accès aux ressources Informatiques de l'université et du département </lien> <br /><br />
+								¨¨¨¨(intranet, messagerie, site de l'université...)<br />
+
+
+					<puce /> <lien image="aucune" dest="http://www.iut-informatique.fr/index.php"          > Portail des Départements Informatique </lien>  <br /> 
+					<puce /> <lien image="aucune" dest="http://www-iut.univ-lehavre.fr/index.php/fr/info"  > Le site Internet du Département       </lien>  <br />
+					<br   />
+					<br />
+					</para>
+				</case>
+			</ligne>
+			
+		</tableau>
+       </cellule>
+
+    </cadre>
+    
+	
+
+	<cadre type="vide">
+		<center><image fichier="./image/deco/bandeau.png" /></center>
+	</cadre>
+
+	
+	
+    <cadre type="double" >
+    
+    <!-- - - - - - - - - - - - -->
+    <!--   CADRE ENSEIGNEMENT  -->
+    <!-- - - - - - - - - - - - -->
+       <cellule titre="Enseignement" >
+       		<para>
+       			<tableau>
+       				<ligne>
+       					
+       					<case>
+								<puce /><lien image="aucune" dest="./info1/index.xml"      >  Info 1   </lien> ¨¨¨¨¨¨
+									<lien image="aucune" dest="./info2/index.xml"      >  Info 2   </lien> ¨¨¨¨¨¨
+									<!--<lien image="aucune" dest="./info2_app/index.xml"  >  Info 2 Apprentissage   </lien> ¨¨¨¨¨¨ -->
+									<lien image="aucune" dest="./info3/index.xml"      >  Info 3   </lien> <br />
+								<br />
+								<puce /><lien image="aucune" dest="./apprentissage/index.html">Apprentissage</lien><br /><br />
+
+								<!--<puce /> <lien image="aucune" dest="intranetPermanent/index.html"  >Rédaction de TP, de projet tutoré et de rapport de stage</lien>  <br />-->
+
+								
+								<puce /> <lien image="aucune" dest="./Enseignement/production_document.xml" >Présenter un travail : Projets, Stages</lien>                                   
+
+								<br /><br />
+
+								<g>Documentation</g>  <br />
+								¨¨¨<lien dest="./Enseignement/javadoc14/index.html">JDK (14) Documentation</lien> <br />
+								¨¨¨<lien dest="./Enseignement/javadoc24/index.html">JDK (24) Documentation </lien> <br />
+
+							</case>
+							
+							
+							<case>¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨</case>
+							<case>
+								<center><image fichier="./image/deco/moy1.png" />  </center>
+							</case>
+							
+							
+						</ligne>
+					</tableau>
+				</para>
+       </cellule>
+
+
+       <!-- - - - - - - - - - - - -->
+       <!--    CADRE DIVERS       -->
+       <!-- - - - - - - - - - - - -->
+       <cellule titre="Divers" >
+       
+       	<tableau>
+       		<ligne>
+       			<case>
+       
+				<puce /> <lien image="aucune" dest="./divers/secretariat/secretariat.html"> Page du secrétariat                        </lien> <br /><br />
+						  
+
+				<puce /> <lien image="aucune" dest="./divers/calendrier 26-27V1.htm"     > Calendrier 2026/2027                        </lien> (V1)<br />
+				<puce /> <lien image="aucune" dest="./divers/calendrier 25-26V3.htm"     > Calendrier 2025/2026                        </lien> <br /><br />
+
+
+				<puce /> <lien image="aucune" dest="./divers/plan.xml"                    > Plan iut (Salles Département)               </lien> <br /><br />
+
+				<puce /> <lien image="aucune" dest="https://hplanning.univ-lehavre.fr/invite"  >  HyperPlanning ( Emploi du Temps )     </lien> <br /><br />
+				<puce /> <lien image="aucune" dest="https://notes-iut.univ-lehavre.fr"         >  Consultation de vos Notes             </lien> 
+				<br />
+
+						  
+			</case>
+					
+					
+			<case>¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨</case>
+			<case>
+				<center><image fichier="./image/deco/moy5.png" />  </center>
+			</case>
+				
+		</ligne>
+	</tableau>
+					       		
+       			
+					
+       </cellule>
+    </cadre>
+    
+
+
+</document>
+
+

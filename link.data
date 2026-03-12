@@ -1,0 +1,38 @@
+-------------------
+page https://diw.iut.univ-lehavre.fr/pedago/index.xml
+===========
+https://diw.iut.univ-lehavre.fr/pedago/css/indexV2.xsl
+
+-------------------
+page https://diw.iut.univ-lehavre.fr/
+===========
+https://diw.iut.univ-lehavre.fr/images/annee1516.gif
+https://diw.iut.univ-lehavre.fr/images/di2009.gif
+https://diw.iut.univ-lehavre.fr/images/logoUniv.gif
+https://diw.iut.univ-lehavre.fr/pedago/
+
+-------------------
+page https://diw.iut.univ-lehavre.fr/pedago/css/indexV2.xsl
+===========
+https://diw.iut.univ-lehavre.fr/pedago/css/{$repRac}/image/cadre/back.gif
+https://diw.iut.univ-lehavre.fr/pedago/css/{$repRac}css/pl.css
+https://diw.iut.univ-lehavre.fr/pedago/css/{$repRac}image/annee.gif
+https://diw.iut.univ-lehavre.fr/pedago/css/{$repRac}image/di2009.gif
+https://diw.iut.univ-lehavre.fr/pedago/css/{$repRac}image/diMini2009.gif
+https://diw.iut.univ-lehavre.fr/pedago/css/{$repRac}image/logoUniv.gif
+https://diw.iut.univ-lehavre.fr/pedago/css/{$repRac}image/{@promotion}.gif
+https://diw.iut.univ-lehavre.fr/pedago/css/{.}
+https://diw.iut.univ-lehavre.fr/pedago/css/{@dest}
+https://diw.iut.univ-lehavre.fr/pedago/css/{@image}
+https://diw.iut.univ-lehavre.fr/pedago/css/{corrige/@dest}
+https://diw.iut.univ-lehavre.fr/pedago/css/{sujet/@dest}
+https://diw.iut.univ-lehavre.fr/pedago/index.html
+
+-------------------
+page https://diw.iut.univ-lehavre.fr/pedago/
+===========
+
+-------------------
+page https://diw.iut.univ-lehavre.fr/pedago/index.html
+===========
+
