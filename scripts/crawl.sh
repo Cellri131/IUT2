@@ -32,10 +32,11 @@ mkdir -p "$OUTPUT_DIR"
 # Écrire les identifiants dans un fichier temporaire pour éviter qu'ils
 # apparaissent dans la liste des processus (ps aux).
 WGETRC_TMP="$(mktemp)"
-chmod 600 "$WGETRC_TMP"
+COOKIE_JAR="$(mktemp)"
+chmod 600 "$WGETRC_TMP" "$COOKIE_JAR"
 printf 'http_user=%s\nhttp_password=%s\n' "$SITE_USER" "$SITE_PASSWORD" > "$WGETRC_TMP"
 export WGETRC="$WGETRC_TMP"
-trap 'rm -f "$WGETRC_TMP"' EXIT
+trap 'rm -f "$WGETRC_TMP" "$COOKIE_JAR"' EXIT
 
 echo "==> Démarrage du miroir de $SITE_URL"
 
@@ -45,10 +46,16 @@ wget \
   --adjust-extension \
   --page-requisites \
   --no-parent \
+  --recursive \
+  --level=inf \
   --directory-prefix="$OUTPUT_DIR" \
   --no-check-certificate \
+  --auth-no-challenge \
+  --keep-session-cookies \
+  --save-cookies="$COOKIE_JAR" \
+  --load-cookies="$COOKIE_JAR" \
   --reject-regex='.*(/[Jj][Dd][Kk]|[Jj]ava[Dd]oc|java-doc|docs/api|apidocs|jdoc).*' \
-  --exclude-directories='*/jdk*,*/JDK*,*/javadoc*,*/apidocs*' \
+  --exclude-directories=/jdk,/JDK,/javadoc,/apidocs \
   --timeout=30 \
   --tries=3 \
   --wait=0.5 \
