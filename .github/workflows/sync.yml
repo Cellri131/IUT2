@@ -25,11 +25,20 @@ jobs:
         with:
           fetch-depth: 0
 
-      # 2. Installer les dépendances Python
-      - name: Install Python dependencies
-        run: pip install requests
+      # 2. Configurer Python
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
 
-      # 3. Crawler le site avec le crawler Python
+      # 3. Installer les dépendances Python
+      - name: Install Python dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # 4. Crawler le site avec le crawler Python
       - name: Crawl site
         env:
           SITE_USER: etInfo
@@ -38,7 +47,7 @@ jobs:
           chmod +x scripts/crawl.sh
           bash scripts/crawl.sh
 
-      # 4. Copier la CSS custom dans le répertoire du site miroir
+      # 5. Copier la CSS custom dans le répertoire du site miroir
       - name: Copy custom CSS
         run: |
           MIRROR_DIR="site/diw.iut.univ-lehavre.fr"
@@ -50,19 +59,32 @@ jobs:
             exit 1
           fi
 
-      # 5. Copier link.data dans le miroir
+      # 6. Copier link.data dans le miroir
       - name: Copy link.data
         run: |
           if [ -f "site/link.data" ]; then
             cp site/link.data site/diw.iut.univ-lehavre.fr/link.data
           fi
 
-      # 5. Injecter le lien CSS dans tous les fichiers HTML
+      # 7. Injecter le lien CSS dans tous les fichiers HTML
       - name: Inject custom CSS
         run: |
           python3 scripts/inject_css.py site/diw.iut.univ-lehavre.fr
 
-      # 6. Déployer sur GitHub Pages
+      # 8. Archiver les rapports d'analyse
+      - name: Upload analysis reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: crawl-reports-${{ github.run_number }}
+          path: |
+            site/crawl_results.json
+            site/crawl_results.csv
+            site/sitemap.txt
+            site/link.data
+            crawler.log
+          retention-days: 30
+
+      # 9. Déployer sur GitHub Pages
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v4
         with:

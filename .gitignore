@@ -1,6 +1,10 @@
 # Mirrored site output
 site/
 
+# Logs
+crawler.log
+*.log
+
 # Python
 __pycache__/
 *.pyc
