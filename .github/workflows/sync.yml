@@ -47,6 +47,21 @@ jobs:
           chmod +x scripts/crawl.sh
           bash scripts/crawl.sh
 
+      # 4b. Vérifier les résultats du crawl
+      - name: Verify crawl results
+        run: |
+          echo "==> Contenu du dossier site/ :"
+          ls -lah site/ || echo "❌ Dossier site/ introuvable"
+          echo ""
+          echo "==> Contenu de site/diw.iut.univ-lehavre.fr/ :"
+          ls -lah site/diw.iut.univ-lehavre.fr/ | head -20 || echo "❌ Dossier site/diw.iut.univ-lehavre.fr/ introuvable"
+          echo ""
+          echo "==> Nombre de fichiers téléchargés :"
+          find site/diw.iut.univ-lehavre.fr -type f | wc -l || echo "0"
+          echo ""
+          echo "==> Espace disque utilisé :"
+          du -sh site/diw.iut.univ-lehavre.fr || echo "N/A"
+
       # 5. Copier la CSS custom dans le répertoire du site miroir
       - name: Copy custom CSS
         run: |
@@ -73,6 +88,7 @@ jobs:
 
       # 8. Archiver les rapports d'analyse
       - name: Upload analysis reports
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: crawl-reports-${{ github.run_number }}
@@ -83,6 +99,7 @@ jobs:
             site/link.data
             crawler.log
           retention-days: 30
+          if-no-files-found: warn
 
       # 9. Déployer sur GitHub Pages
       - name: Deploy to GitHub Pages
@@ -92,3 +109,24 @@ jobs:
           publish_dir: ./site/diw.iut.univ-lehavre.fr
           force_orphan: false
           commit_message: "sync: mise à jour miroir"
+          enable_jekyll: false
+          user_name: 'github-actions[bot]'
+          user_email: 'github-actions[bot]@users.noreply.github.com'
+
+      # 10. Résumé du déploiement
+      - name: Deployment summary
+        if: always()
+        run: |
+          echo "✅ Workflow terminé !"
+          echo ""
+          echo "📊 Statistiques :"
+          echo "- Fichiers crawlés : $(find site/diw.iut.univ-lehavre.fr -type f 2>/dev/null | wc -l || echo 0)"
+          echo "- Taille totale : $(du -sh site/diw.iut.univ-lehavre.fr 2>/dev/null | cut -f1 || echo 'N/A')"
+          echo ""
+          if [ -f site/crawl_results.json ]; then
+            echo "📄 Rapports générés :"
+            echo "  ✓ crawl_results.json"
+            echo "  ✓ crawl_results.csv"
+            echo "  ✓ sitemap.txt"
+            echo "  ✓ crawler.log"
+          fi
