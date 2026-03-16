@@ -10,25 +10,6 @@ pip install -r requirements.txt
 ```
 
 ### 2. Lancer le crawler
-```bash
-# Crawl complet
-SITE_USER=etInfo SITE_PASSWORD='t[0]!=1' bash scripts/crawl.sh
-
-# Mode PDF uniquement
-SITE_USER=etInfo SITE_PASSWORD='t[0]!=1' bash scripts/crawl.sh --pdf-only
-```
-
-### 3. Ou avec un fichier .env
-Créez un fichier `.env` :
-```env
-SITE_USER=etInfo
-SITE_PASSWORD=t[0]!=1
-```
-
-Puis :
-```bash
-bash scripts/crawl.sh
-```
 
 ## Résultats
 
