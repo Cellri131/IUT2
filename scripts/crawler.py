@@ -112,8 +112,10 @@ def url_to_filepath(url: str, output_dir: str) -> str:
         path = path + "index.html"
     # Décoder les %XX
     path = urllib.parse.unquote(path)
+    # Remplacer les slashes par des backslashes sur Windows
+    path = path.replace("/", os.sep)
     # Construire le chemin local
-    local_path = os.path.join(output_dir, parsed.hostname, path.lstrip("/"))
+    local_path = os.path.join(output_dir, parsed.hostname, path.lstrip("/").lstrip(os.sep))
     return local_path
 
 
@@ -348,25 +350,33 @@ def crawl(start_url: str, output_dir: str, user: str, password: str, pdf_only: b
                 with open(filepath, "w", encoding="utf-8", errors="replace") as f:
                     f.write(resp.text)
             else:
+                # Télécharger en streaming pour les fichiers volumineux
                 with open(filepath, "wb") as f:
-                    f.write(resp.content)
+                    for chunk in resp.iter_content(chunk_size=8192):
+                        if chunk:
+                            f.write(chunk)
 
             # En mode PDF uniquement, ne sauvegarder que les PDFs dans les résultats
             should_save_result = not pdf_only or is_pdf
 
             if should_save_result:
+                # Utiliser le Content-Length ou la taille du fichier
+                content_length = int(resp.headers.get("Content-Length", 0))
+                if not content_length:
+                    content_length = os.path.getsize(filepath) if os.path.exists(filepath) else 0
+
                 results.append({
                     'url': url,
                     'status_code': resp.status_code,
                     'content_type': content_type,
-                    'content_length': len(resp.content),
+                    'content_length': content_length,
                     'timestamp': datetime.now().isoformat()
                 })
                 downloaded_count += 1
 
                 if is_pdf:
                     pdfs_found += 1
-                    logger.info(f"    📄 PDF trouvé ({len(resp.content)} bytes)")
+                    logger.info(f"    📄 PDF trouvé ({content_length} bytes)")
 
             # Extraire les liens et écrire dans link.data
             if is_text:
