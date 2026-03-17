@@ -21,6 +21,7 @@ import re
 import sys
 import time
 import random
+import hashlib
 import urllib.parse
 import json
 import csv
@@ -105,17 +106,23 @@ def normalize_url(url: str) -> str:
 
 
 def url_to_filepath(url: str, output_dir: str) -> str:
-    """Convertit une URL en chemin de fichier local."""
+    """Convertit une URL en chemin de fichier local avec support des chemins longs."""
     parsed = urllib.parse.urlparse(url)
     path = parsed.path
-    if not path or path.endswith("/"):
-        path = path + "index.html"
-    # Décoder les %XX
-    path = urllib.parse.unquote(path)
-    # Remplacer les slashes par des backslashes sur Windows
-    path = path.replace("/", os.sep)
-    # Construire le chemin local
-    local_path = os.path.join(output_dir, parsed.hostname, path.lstrip("/").lstrip(os.sep))
+
+    # Extraire l'extension du fichier
+    file_ext = ""
+    if path and "." in path.split("/")[-1]:
+        file_ext = "." + path.split(".")[-1]
+    elif not path or path.endswith("/"):
+        file_ext = ".html"
+
+    # Créer un hash du chemin complet pour éviter les dépassements MAX_PATH Windows (260 caractères)
+    url_hash = hashlib.md5(url.encode()).hexdigest()[:12]
+
+    # Construire le chemin: sortie/domaine/hash.ext
+    local_path = os.path.join(output_dir, parsed.hostname, url_hash + file_ext)
+
     return local_path
 
 
@@ -290,13 +297,15 @@ def crawl(start_url: str, output_dir: str, user: str, password: str, pdf_only: b
     to_visit.append(normalize_url(BASE_URL))
 
     results = []  # Pour l'export JSON/CSV
+    url_mapping = {}  # Mapping hash -> URL original
     link_data_path = os.path.join(output_dir, "link.data")
+    mapping_path = os.path.join(output_dir, "url_mapping.json")
     downloaded_count = 0
     skipped_count = 0
     pdfs_found = 0
 
     if pdf_only:
-        logger.info(f"🔍 Mode PDF UNIQUEMENT activé")
+        logger.info(f"[CRAWL] Mode PDF UNIQUEMENT active")
 
     with open(link_data_path, "w", encoding="utf-8") as link_file:
         while to_visit:
@@ -316,16 +325,16 @@ def crawl(start_url: str, output_dir: str, user: str, password: str, pdf_only: b
             # Télécharger la page
             try:
                 is_pdf = is_pdf_url(url)
-                logger.info(f"  → {url}" + (f" [PDF]" if is_pdf else ""))
+                logger.info(f"  -> {url}" + (f" [PDF]" if is_pdf else ""))
                 resp = session.get(url, timeout=60)
 
                 # Si on a un 401, l'auth est déjà configurée dans la session
                 if resp.status_code == 401:
-                    logger.warning(f"    ⚠ 401 Unauthorized pour {url}")
+                    logger.warning(f"    [WARN] 401 Unauthorized pour {url}")
 
                 resp.raise_for_status()
             except requests.RequestException as e:
-                logger.error(f"    ✗ Erreur : {e}")
+                logger.error(f"    [ERROR] Erreur : {e}")
                 results.append({
                     'url': url,
                     'status_code': 'ERROR',
@@ -365,18 +374,23 @@ def crawl(start_url: str, output_dir: str, user: str, password: str, pdf_only: b
                 if not content_length:
                     content_length = os.path.getsize(filepath) if os.path.exists(filepath) else 0
 
+                # Ajouter au mapping
+                url_hash = hashlib.md5(url.encode()).hexdigest()[:12]
+                url_mapping[url_hash] = url
+
                 results.append({
                     'url': url,
                     'status_code': resp.status_code,
                     'content_type': content_type,
                     'content_length': content_length,
-                    'timestamp': datetime.now().isoformat()
+                    'timestamp': datetime.now().isoformat(),
+                    'hash': url_hash
                 })
                 downloaded_count += 1
 
                 if is_pdf:
                     pdfs_found += 1
-                    logger.info(f"    📄 PDF trouvé ({content_length} bytes)")
+                    logger.info(f"    [PDF] Fichier trouvé ({content_length} bytes)")
 
             # Extraire les liens et écrire dans link.data
             if is_text:
@@ -403,7 +417,7 @@ def crawl(start_url: str, output_dir: str, user: str, password: str, pdf_only: b
                 if pdf_only:
                     pdf_links = [link for link in links if is_pdf_url(link)]
                     if pdf_links:
-                        logger.info(f"    📄 {len(pdf_links)} liens PDF trouvés")
+                        logger.info(f"    [PDF] {len(pdf_links)} liens PDF trouves")
 
             # Politesse : petite pause entre les requêtes
             time.sleep(0.3 + random.uniform(0, 0.3))
@@ -411,14 +425,19 @@ def crawl(start_url: str, output_dir: str, user: str, password: str, pdf_only: b
             # Affichage du progrès
             if (downloaded_count + skipped_count) % 10 == 0:
                 if pdf_only:
-                    logger.info(f"📊 Explorées: {len(visited)}, PDFs: {pdfs_found}, En attente: {len(to_visit)}")
+                    logger.info(f"[PROGRESS] Explorees: {len(visited)}, PDFs: {pdfs_found}, En attente: {len(to_visit)}")
                 else:
-                    logger.info(f"📊 Téléchargées: {downloaded_count}, En attente: {len(to_visit)}")
+                    logger.info(f"[PROGRESS] Telecharges: {downloaded_count}, En attente: {len(to_visit)}")
 
-    logger.info(f"\n==> {downloaded_count} fichier(s) téléchargé(s), {skipped_count} exclu(s)")
+    logger.info(f"\n==> {downloaded_count} fichier(s) telecharge(s), {skipped_count} exclu(s)")
     if pdf_only:
-        logger.info(f"==> {pdfs_found} PDFs collectés")
+        logger.info(f"==> {pdfs_found} PDFs collectes")
     logger.info(f"==> link.data : {link_data_path}")
+
+    # Sauvegarder le mapping des hashes -> URLs
+    with open(mapping_path, 'w', encoding='utf-8') as f:
+        json.dump(url_mapping, f, indent=2, ensure_ascii=False)
+    logger.info(f"==> url_mapping.json : {mapping_path}")
 
     # Sauvegarder les résultats en JSON et CSV
     save_results(output_dir, results)
@@ -456,15 +475,15 @@ def print_summary(results: list, pdf_only: bool = False):
 
     print(f"\n{'='*50}")
     if pdf_only:
-        print(f"📄 RÉSUMÉ DU CRAWLING PDF")
+        print(f"[PDF] RESUME DU CRAWLING PDF")
     else:
-        print(f"RÉSUMÉ DU CRAWLING")
+        print(f"RESUME DU CRAWLING")
     print(f"{'='*50}")
-    print(f"Site crawlé: {BASE_URL}")
+    print(f"Site crawle: {BASE_URL}")
     print(f"Total des pages: {total_pages}")
     if pdf_only:
-        print(f"📄 PDFs collectés: {pdf_pages}")
-    print(f"Pages réussies (200): {success_pages}")
+        print(f"[PDF] PDFs collectes: {pdf_pages}")
+    print(f"Pages reussies (200): {success_pages}")
     print(f"Pages en erreur: {error_pages}")
     if pdf_only:
         print(f"Mode: PDF UNIQUEMENT")
@@ -489,10 +508,10 @@ def main():
     os.makedirs(output_dir, exist_ok=True)
 
     if pdf_only:
-        print(f"🔍 Crawl PDF UNIQUEMENT de {START_URL}")
-        print(f"📄 Seuls les fichiers PDF seront collectés")
+        print(f"[CRAWL] Crawl PDF UNIQUEMENT de {START_URL}")
+        print(f"[PDF] Seuls les fichiers PDF seront collectes")
     else:
-        print(f"==> Crawl de {START_URL}")
+        print(f"[CRAWL] Crawl de {START_URL}")
 
     print(f"    Sortie : {output_dir}")
 
@@ -500,7 +519,7 @@ def main():
         results = crawl(START_URL, output_dir, user, password, pdf_only)
         print_summary(results, pdf_only)
     except KeyboardInterrupt:
-        print("\n⚠ Crawling interrompu par l'utilisateur")
+        print("\n[WARN] Crawling interrompu par l'utilisateur")
     except Exception as e:
         logger.error(f"Erreur fatale: {e}")
         sys.exit(1)
