@@ -46,12 +46,42 @@ def main():
 
     # Lancer le crawler
     try:
+        print("ÉTAPE 1/4: Crawling des pages...")
+        print("="*60)
         subprocess.run(cmd, check=True)
+
+        print()
+        print("="*60)
+        print("ÉTAPE 2/4: Conversion XML → HTML...")
+        print("="*60)
+        converter_script = os.path.join(os.path.dirname(__file__), "xml_to_html_converter.py")
+        subprocess.run([sys.executable, converter_script, output_dir], check=True)
+
+        print()
+        print("="*60)
+        print("ÉTAPE 3/4: Téléchargement des images...")
+        print("="*60)
+        images_script = os.path.join(os.path.dirname(__file__), "download_images.py")
+        subprocess.run([sys.executable, images_script, output_dir, user, password], check=True)
+
+        print()
+        print("="*60)
+        print("ÉTAPE 4/4: Nettoyage HTML et application du CSS personnalisé...")
+        print("="*60)
+        cleaner_script = os.path.join(os.path.dirname(__file__), "clean_html.py")
+        subprocess.run([sys.executable, cleaner_script, output_dir], check=True)
+
+        print()
+        print("="*60)
+        print("✓ TERMINÉ !")
+        print("="*60)
+        print(f"Les fichiers sont disponibles dans: {output_dir}")
+
     except subprocess.CalledProcessError as e:
         print(f"\nErreur lors de l'exécution: {e}")
         sys.exit(1)
-    except FileNotFoundError:
-        print(f"\nErreur: Impossible de trouver crawler.py")
+    except FileNotFoundError as e:
+        print(f"\nErreur: Impossible de trouver un script: {e}")
         sys.exit(1)
 
 
