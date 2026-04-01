@@ -106,22 +106,31 @@ def normalize_url(url: str) -> str:
 
 
 def url_to_filepath(url: str, output_dir: str) -> str:
-    """Convertit une URL en chemin de fichier local avec support des chemins longs."""
+    """Convertit une URL en chemin de fichier local en préservant la structure."""
     parsed = urllib.parse.urlparse(url)
     path = parsed.path
 
-    # Extraire l'extension du fichier
-    file_ext = ""
-    if path and "." in path.split("/")[-1]:
-        file_ext = "." + path.split(".")[-1]
-    elif not path or path.endswith("/"):
-        file_ext = ".html"
+    # Nettoyer le chemin : enlever le / initial et décoder les caractères URL
+    clean_path = urllib.parse.unquote(path.lstrip('/'))
 
-    # Créer un hash du chemin complet pour éviter les dépassements MAX_PATH Windows (260 caractères)
-    url_hash = hashlib.md5(url.encode()).hexdigest()[:12]
+    # Si le chemin est vide ou se termine par /, c'est une page d'accueil
+    if not clean_path or clean_path.endswith('/'):
+        clean_path = clean_path.rstrip('/') + '/index.html'
 
-    # Construire le chemin: sortie/domaine/hash.ext
-    local_path = os.path.join(output_dir, parsed.hostname, url_hash + file_ext)
+    # Remplacer les / par le séparateur du système d'exploitation
+    clean_path = clean_path.replace('/', os.sep)
+
+    # Remplacer les caractères invalides pour Windows
+    invalid_chars = '<>:"|?*'
+    for char in invalid_chars:
+        clean_path = clean_path.replace(char, '_')
+
+    # Construire le chemin complet avec le chemin absolu
+    local_path = os.path.abspath(os.path.join(output_dir, clean_path))
+
+    # Sur Windows, utiliser le préfixe \\?\ pour supporter les chemins longs
+    if os.name == 'nt' and not local_path.startswith('\\\\?\\'):
+        local_path = '\\\\?\\' + local_path
 
     return local_path
 
@@ -346,7 +355,6 @@ def crawl(start_url: str, output_dir: str, user: str, password: str, pdf_only: b
 
             # Sauvegarder le fichier
             filepath = url_to_filepath(url, output_dir)
-            os.makedirs(os.path.dirname(filepath), exist_ok=True)
 
             # Détecter si c'est du texte ou du binaire
             content_type = resp.headers.get("Content-Type", "")
@@ -354,6 +362,24 @@ def crawl(start_url: str, output_dir: str, user: str, password: str, pdf_only: b
                 t in content_type
                 for t in ["text/", "xml", "html", "json", "javascript", "css"]
             )
+
+            # Si c'est du HTML/XML et que l'URL n'a pas d'extension, ajouter .html
+            parsed = urllib.parse.urlparse(url)
+            has_extension = '.' in parsed.path.split('/')[-1] if parsed.path else False
+            if is_text and 'html' in content_type.lower() and not has_extension:
+                # Remplacer ou ajouter l'extension .html
+                if filepath.endswith('\\\\?\\'):
+                    filepath = filepath + 'index.html'
+                else:
+                    filepath = filepath + '.html'
+
+            try:
+                dir_path = os.path.dirname(filepath)
+                if dir_path:
+                    os.makedirs(dir_path, exist_ok=True)
+            except Exception as e:
+                logger.error(f"    [ERROR] Impossible de créer le répertoire {dir_path}: {e}")
+                continue
 
             if is_text:
                 with open(filepath, "w", encoding="utf-8", errors="replace") as f:
