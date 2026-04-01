@@ -66,10 +66,10 @@ def main():
 
         print()
         print("="*60)
-        print("ÉTAPE 4/4: Nettoyage HTML et application du CSS personnalisé...")
+        print("ÉTAPE 4/4: Configuration du CSS personnalisé...")
         print("="*60)
-        cleaner_script = os.path.join(os.path.dirname(__file__), "clean_html.py")
-        subprocess.run([sys.executable, cleaner_script, output_dir], check=True)
+        css_setup_script = os.path.join(os.path.dirname(__file__), "setup_custom_css.py")
+        subprocess.run([sys.executable, css_setup_script, output_dir], check=True)
 
         print()
         print("="*60)

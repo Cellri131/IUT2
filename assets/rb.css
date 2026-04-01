@@ -1,0 +1,309 @@
+/* =============================================================
+   rb.css  –  Style personnalisé pour le site IUT2
+
+   Feuille de style moderne et propre pour l'affichage
+   des pages du site IUT2 miroir.
+   ============================================================= */
+
+/* ---------- Variables de couleurs ---------- */
+:root {
+  --primary: #2563eb;
+  --primary-dark: #1d4ed8;
+  --accent: #f59e0b;
+  --bg: #f8fafc;
+  --text: #1e293b;
+  --text-light: #64748b;
+  --border: #e2e8f0;
+  --white: #ffffff;
+}
+
+/* ---------- Reset et base ---------- */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+  color: var(--text);
+  background-color: var(--bg);
+  line-height: 1.6;
+  padding: 20px;
+}
+
+/* ---------- Bannière site miroir ---------- */
+body::before {
+  content: "🔄 Site miroir IUT2 – version locale";
+  display: block;
+  background: var(--accent);
+  color: #000;
+  text-align: center;
+  padding: 8px 12px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  position: sticky;
+  top: 0;
+  z-index: 99999;
+  margin: -20px -20px 20px -20px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* ---------- Bouton retour ---------- */
+.back-button {
+  position: fixed;
+  top: 60px;
+  left: 20px;
+  background-color: var(--primary);
+  color: var(--white);
+  padding: 10px 20px;
+  border-radius: 6px;
+  text-decoration: none;
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  transition: all 0.3s ease;
+  z-index: 1000;
+}
+
+.back-button:hover {
+  background-color: var(--primary-dark);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+/* ---------- Conteneur principal ---------- */
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  background-color: var(--white);
+  padding: 40px;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* ---------- Typographie ---------- */
+h1 {
+  color: var(--text);
+  font-size: 2.25em;
+  font-weight: 700;
+  margin-bottom: 24px;
+  padding-bottom: 12px;
+  border-bottom: 3px solid var(--primary);
+}
+
+h2 {
+  color: var(--text);
+  font-size: 1.75em;
+  font-weight: 600;
+  margin-top: 32px;
+  margin-bottom: 16px;
+}
+
+h3 {
+  color: var(--text-light);
+  font-size: 1.35em;
+  font-weight: 600;
+  margin-top: 24px;
+  margin-bottom: 12px;
+}
+
+p {
+  margin-bottom: 16px;
+  line-height: 1.7;
+}
+
+/* ---------- Liens ---------- */
+a {
+  color: var(--primary);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+a:hover {
+  color: var(--primary-dark);
+  text-decoration: underline;
+}
+
+/* ---------- Cadres ---------- */
+.cadre {
+  border: 1px solid var(--border);
+  margin: 24px 0;
+  padding: 24px;
+  background-color: #fafbfc;
+  border-radius: 8px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.cadre-double {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  margin: 24px 0;
+}
+
+.cadre-vide {
+  margin: 24px 0;
+}
+
+/* ---------- Cellules ---------- */
+.cellule {
+  padding: 16px;
+}
+
+.cellule-titre {
+  font-weight: 700;
+  font-size: 1.25em;
+  margin-bottom: 16px;
+  color: var(--text);
+  border-left: 4px solid var(--primary);
+  padding-left: 12px;
+}
+
+/* ---------- Tableaux ---------- */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 20px 0;
+  background-color: var(--white);
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+td, th {
+  padding: 14px;
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid var(--border);
+}
+
+th {
+  background-color: var(--primary);
+  color: var(--white);
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.85em;
+  letter-spacing: 0.5px;
+}
+
+tr:hover {
+  background-color: #f8fafc;
+}
+
+tr:last-child td {
+  border-bottom: none;
+}
+
+/* ---------- Images ---------- */
+img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: 20px 0;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* ---------- Alignement ---------- */
+.center {
+  text-align: center;
+}
+
+/* ---------- Mise en forme du texte ---------- */
+.bold, strong {
+  font-weight: 700;
+  color: var(--text);
+}
+
+.italic, em {
+  font-style: italic;
+}
+
+.fixed, code {
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  background-color: #f1f5f9;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 0.9em;
+  color: #e11d48;
+  border: 1px solid var(--border);
+}
+
+/* ---------- Puces ---------- */
+.puce {
+  display: inline-block;
+  margin-right: 8px;
+  color: var(--primary);
+}
+
+.puce::before {
+  content: "• ";
+  font-weight: bold;
+  font-size: 1.2em;
+}
+
+/* ---------- Listes ---------- */
+ul, ol {
+  margin: 16px 0;
+  padding-left: 28px;
+}
+
+li {
+  margin: 8px 0;
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 768px) {
+  body {
+    padding: 10px;
+  }
+
+  .container {
+    padding: 20px;
+  }
+
+  .cadre-double {
+    grid-template-columns: 1fr;
+  }
+
+  .back-button {
+    position: static;
+    display: inline-block;
+    margin-bottom: 20px;
+  }
+
+  h1 {
+    font-size: 1.75em;
+  }
+
+  h2 {
+    font-size: 1.4em;
+  }
+
+  table {
+    font-size: 0.9em;
+  }
+
+  td, th {
+    padding: 10px;
+  }
+}
+
+/* ---------- Améliorations d'accessibilité ---------- */
+a:focus,
+.back-button:focus {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* ---------- Print styles ---------- */
+@media print {
+  body::before,
+  .back-button {
+    display: none;
+  }
+
+  .container {
+    box-shadow: none;
+  }
+}
