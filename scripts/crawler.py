@@ -516,6 +516,52 @@ def print_summary(results: list, pdf_only: bool = False):
     print(f"{'='*50}")
 
 
+def run_xml_to_html_converter(output_dir: str):
+    """Lance la conversion XML → HTML."""
+    try:
+        print("\n" + "="*60)
+        print("[CONVERSION] Conversion XML → HTML en cours...")
+        print("="*60)
+
+        from pathlib import Path
+
+        input_dir = Path(output_dir)
+        converted_count = 0
+        error_count = 0
+
+        xml_files = list(input_dir.rglob("*.xml"))
+        logger.info(f"Trouvé {len(xml_files)} fichier(s) XML à convertir")
+
+        from xml_to_html_converter import XMLToHTMLConverter
+        converter = XMLToHTMLConverter(output_dir, dry_run=False)
+        converter.convert_all()
+
+        print(f"✓ Conversion terminée: {converter.converted_count} fichier(s)")
+
+    except Exception as e:
+        logger.error(f"Erreur lors de la conversion XML → HTML: {e}")
+        print(f"[WARN] La conversion XML → HTML a échoué : {e}")
+
+
+def run_link_fixer(output_dir: str):
+    """Lance l'adaptation des liens."""
+    try:
+        print("\n" + "="*60)
+        print("[LIENS] Adaptation des liens en cours...")
+        print("="*60)
+
+        from fix_links import LinkFixer
+
+        fixer = LinkFixer(output_dir, dry_run=False)
+        fixer.process_all_files()
+
+        print(f"✓ Adaptation terminée: {fixer.links_replaced} lien(s) adapté(s)")
+
+    except Exception as e:
+        logger.error(f"Erreur lors de l'adaptation des liens: {e}")
+        print(f"[WARN] L'adaptation des liens a échoué : {e}")
+
+
 def main():
     # Vérifier les arguments
     if len(sys.argv) < 4:
@@ -542,10 +588,22 @@ def main():
     print(f"    Sortie : {output_dir}")
 
     try:
+        # 1. Crawling
         results = crawl(START_URL, output_dir, user, password, pdf_only)
         print_summary(results, pdf_only)
+
+        # 2. Conversion XML → HTML
+        run_xml_to_html_converter(output_dir)
+
+        # 3. Adaptation des liens
+        run_link_fixer(output_dir)
+
+        print("\n" + "="*60)
+        print("[SUCCESS] ✓ Pipeline complet terminé avec succès !")
+        print("="*60)
+
     except KeyboardInterrupt:
-        print("\n[WARN] Crawling interrompu par l'utilisateur")
+        print("\n[WARN] Execution interrompue par l'utilisateur")
     except Exception as e:
         logger.error(f"Erreur fatale: {e}")
         sys.exit(1)
