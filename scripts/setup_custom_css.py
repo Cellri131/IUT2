@@ -186,34 +186,22 @@ class CSSSetup:
                 script_tag['defer'] = ''
                 head.append(script_tag)
 
-        # 5. Ajouter le bouton retour et le conteneur si pas déjà présent
+        # 5. Ajouter le conteneur si pas déjà présent (pas de button retour, le JS va les créer)
         body = soup.find('body')
         if body:
-            # Vérifier si le bouton retour existe déjà
-            if not body.find('a', class_='back-button'):
-                # Créer le bouton retour
-                back_button = soup.new_tag('a', href='javascript:history.back()')
-                back_button['class'] = 'back-button'
-                back_button.string = '← Retour'
+            # Vérifier si le conteneur existe déjà
+            container = body.find('div', class_='container')
+            if not container:
+                # Créer le conteneur
+                container = soup.new_tag('div')
+                container['class'] = 'container'
 
-                # Vérifier si le conteneur existe déjà
-                container = body.find('div', class_='container')
-                if not container:
-                    # Créer le conteneur
-                    container = soup.new_tag('div')
-                    container['class'] = 'container'
+                # Déplacer tout le contenu du body dans le conteneur
+                for child in list(body.children):
+                    container.append(child.extract())
 
-                    # Déplacer tout le contenu du body dans le conteneur
-                    for child in list(body.children):
-                        container.append(child.extract())
-
-                    # Vider le body et ajouter le bouton + conteneur
-                    body.clear()
-                    body.append(back_button)
-                    body.append(container)
-                else:
-                    # Juste ajouter le bouton au début
-                    body.insert(0, back_button)
+                # Ajouter le conteneur au body
+                body.append(container)
 
         # 6. Nettoyer les redirections meta inutiles
         meta_refresh = soup.find('meta', {'http-equiv': 'refresh'})
