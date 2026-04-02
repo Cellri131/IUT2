@@ -76,9 +76,10 @@ class CSSSetup:
         logger.info(f"  ✓ Dossier CSS recréé")
 
     def _create_custom_css(self):
-        """Copie le fichier rb.css depuis assets."""
-        logger.info("Copie du fichier rb.css depuis assets...")
+        """Copie les fichiers rb.css et rb.js depuis assets."""
+        logger.info("Copie des fichiers depuis assets...")
 
+        # Copier rb.css
         source_css = self.assets_dir / "rb.css"
         dest_css = self.css_dir / "rb.css"
 
@@ -87,7 +88,17 @@ class CSSSetup:
             raise FileNotFoundError(f"Le fichier rb.css n'existe pas dans assets")
 
         shutil.copy2(source_css, dest_css)
-        logger.info(f"  ✓ Fichier rb.css copié depuis assets")
+        logger.info(f"  ✓ Fichier rb.css copié")
+
+        # Copier rb.js
+        source_js = self.assets_dir / "rb.js"
+        dest_js = self.css_dir / "rb.js"
+
+        if not source_js.exists():
+            logger.warning(f"  ⚠ rb.js non trouvé dans assets")
+        else:
+            shutil.copy2(source_js, dest_js)
+            logger.info(f"  ✓ Fichier rb.js copié")
 
     def _clean_all_html_files(self):
         """Nettoie tous les fichiers HTML."""
@@ -142,8 +153,9 @@ class CSSSetup:
             if 'pedago' in relative_path.parts:
                 # On est dans pedago ou un sous-dossier
                 pedago_index = relative_path.parts.index('pedago')
-                depth = len(relative_path.parts) - pedago_index - 1
-                # Ne pas ajouter de point au début, juste ../
+                # Nombre de dossiers entre pedago et le fichier (sans compter le fichier lui-même)
+                depth = len(relative_path.parts) - pedago_index - 2
+                # Générer le chemin: ../ pour chaque niveau
                 if depth > 0:
                     css_path = '../' * depth + 'css/rb.css'
                 else:
@@ -155,6 +167,24 @@ class CSSSetup:
             # Créer le lien CSS
             link_tag = soup.new_tag('link', rel='stylesheet', href=css_path)
             head.append(link_tag)
+
+            # Ajouter le script JS
+            if 'pedago' in relative_path.parts:
+                pedago_index = relative_path.parts.index('pedago')
+                depth = len(relative_path.parts) - pedago_index - 2
+                if depth > 0:
+                    js_path = '../' * depth + 'css/rb.js'
+                else:
+                    js_path = 'css/rb.js'
+            else:
+                js_path = 'pedago/css/rb.js'
+
+            # Vérifier si le script existe déjà
+            existing_script = head.find('script', {'src': lambda x: x and 'rb.js' in x})
+            if not existing_script:
+                script_tag = soup.new_tag('script', src=js_path)
+                script_tag['defer'] = ''
+                head.append(script_tag)
 
         # 5. Ajouter le bouton retour et le conteneur si pas déjà présent
         body = soup.find('body')

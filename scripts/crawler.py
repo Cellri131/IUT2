@@ -40,7 +40,7 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 # Configuration du logging
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.INFO,  # Retour à INFO
     format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[
         logging.FileHandler('crawler.log'),
@@ -309,9 +309,22 @@ def crawl(start_url: str, output_dir: str, user: str, password: str, pdf_only: b
     url_mapping = {}  # Mapping hash -> URL original
     link_data_path = os.path.join(output_dir, "link.data")
     mapping_path = os.path.join(output_dir, "url_mapping.json")
+    cache_path = os.path.join(output_dir, ".content_cache.json")
+
     downloaded_count = 0
     skipped_count = 0
+    skipped_identical = 0  # Fichiers identiques non re-téléchargés
     pdfs_found = 0
+
+    # Charger le cache de contenu (hashes des fichiers)
+    content_cache = {}
+    if os.path.exists(cache_path):
+        try:
+            with open(cache_path, 'r', encoding='utf-8') as f:
+                content_cache = json.load(f)
+            logger.info(f"Cache chargé: {len(content_cache)} fichiers en cache")
+        except Exception as e:
+            logger.warning(f"Impossible de charger le cache: {e}")
 
     if pdf_only:
         logger.info(f"[CRAWL] Mode PDF UNIQUEMENT active")
@@ -334,7 +347,109 @@ def crawl(start_url: str, output_dir: str, user: str, password: str, pdf_only: b
             # Télécharger la page
             try:
                 is_pdf = is_pdf_url(url)
-                logger.info(f"  -> {url}" + (f" [PDF]" if is_pdf else ""))
+
+                # Calculer le filepath AVANT pour pouvoir lire la taille locale
+                filepath = url_to_filepath(url, output_dir)
+
+                # Si c'est du HTML/XML et que l'URL n'a pas d'extension, ajouter .html
+                parsed = urllib.parse.urlparse(url)
+                has_extension = '.' in parsed.path.split('/')[-1] if parsed.path else False
+
+                # D'abord, essayer une requête HEAD pour obtenir la taille sans télécharger
+                head_resp = None
+                remote_size = None
+                content_type = None
+
+                try:
+                    head_resp = session.head(url, timeout=10, allow_redirects=True)
+
+                    # Si on a un 401 sur HEAD mais que le fichier existe, utiliser la taille locale
+                    if head_resp.status_code == 401:
+                        logger.debug(f"    HEAD  401, utilisation taille locale si disponible")
+                        # Essayer de lire la taille du fichier local
+                        if os.path.exists(filepath):
+                            remote_size = os.path.getsize(filepath)
+                            logger.debug(f"    Taille locale: {remote_size} bytes")
+                        # Vérifier aussi avec extension .html
+                        elif hasextension and os.path.exists(filepath + '.html'):
+                            remote_size = os.path.getsize(filepath + '.html')
+                            filepath = filepath + '.html'
+                            logger.debug(f"    Taille locale (.html): {remote_size} bytes")
+                    else:
+                        remote_size = int(head_resp.headers.get("Content-Length", 0))
+                        content_type = head_resp.headers.get("Content-Type", "")
+                        logger.debug(f"    HEAD: Content-Length={remote_size}, Content-Type={content_type}")
+
+                except Exception as head_error:
+                    logger.debug(f"    HEAD échoué: {head_error}")
+                    # Essayer de lire la taille du fichier local
+                    if os.path.exists(filepath):
+                        remote_size = os.path.getsize(filepath)
+                        logger.debug(f"    Fallback taille locale: {remote_size} bytes")
+
+                # Déterminer si c'est du texte
+                is_text = content_type and any(
+                    t in content_type
+                    for t in ["text/", "xml", "html", "json", "javascript", "css"]
+                ) if content_type else True
+
+                # Ajuster le filepath si nécessaire
+                if content_type and is_text and 'html' in content_type.lower() and not has_extension:
+                    if filepath.endswith('\\\\?\\'):
+                        filepath = filepath + 'index.html'
+                    else:
+                        filepath = filepath + '.html'
+
+                # Vérifier le cache
+                file_exists = os.path.exists(filepath)
+                cached_info = content_cache.get(url, {})
+                cached_size = cached_info.get('size', 0) if isinstance(cached_info, dict) else 0
+
+                logger.debug(f"    Cache: file_exists={file_exists}, cached_size={cached_size}, remote_size={remote_size}")
+
+                # Comparer la taille distante avec le cache
+                # Seulement si on a pu obtenir une taille distante valide
+                if file_exists and remote_size and remote_size > 0 and cached_size == remote_size:
+                    logger.info(f"  -> {url}" + (f" [PDF]" if is_pdf else "") + " [SKIP - Identique]")
+                    skipped_identical += 1
+
+                    # Mettre à jour le timestamp dans le cache
+                    content_cache[url] = {
+                        'size': remote_size,
+                        'timestamp': datetime.now().isoformat(),
+                        'filepath': filepath
+                    }
+
+                    # Quand même faire un GET pour extraire les liens (pour HTML/XML)
+                    if is_text and not is_pdf:
+                        try:
+                            resp = session.get(url, timeout=60)
+                            links = extract_links(resp.text, url, pdf_only)
+
+                            link_file.write(f"-------------------\n")
+                            link_file.write(f"page {url}\n")
+                            link_file.write(f"===========\n")
+                            for link in links:
+                                link_file.write(f"{link}\n")
+                            link_file.write("\n")
+                            link_file.flush()
+
+                            # Ajouter les nouveaux liens à visiter
+                            for link in links:
+                                normalized = normalize_url(link)
+                                if (
+                                    normalized not in visited
+                                    and is_same_domain(normalized)
+                                    and not is_excluded(normalized)
+                                ):
+                                    to_visit.append(normalized)
+                        except Exception as link_error:
+                            logger.debug(f"    Erreur extraction liens: {link_error}")
+
+                    continue
+
+                # Télécharger le fichier complet
+                logger.info(f"  -> {url}" + (f" [PDF]" if is_pdf else "") + " [DOWNLOAD]")
                 resp = session.get(url, timeout=60)
 
                 # Si on a un 401, l'auth est déjà configurée dans la session
@@ -342,6 +457,21 @@ def crawl(start_url: str, output_dir: str, user: str, password: str, pdf_only: b
                     logger.warning(f"    [WARN] 401 Unauthorized pour {url}")
 
                 resp.raise_for_status()
+
+                # Obtenir la taille réelle du contenu téléchargé
+                content_type = resp.headers.get("Content-Type", "")
+                is_text = any(
+                    t in content_type
+                    for t in ["text/", "xml", "html", "json", "javascript", "css"]
+                )
+
+                if is_text:
+                    actual_size = len(resp.text.encode('utf-8'))
+                else:
+                    actual_size = len(resp.content)
+
+                logger.debug(f"    Téléchargé: {actual_size} bytes")
+
             except requests.RequestException as e:
                 logger.error(f"    [ERROR] Erreur : {e}")
                 results.append({
@@ -352,26 +482,6 @@ def crawl(start_url: str, output_dir: str, user: str, password: str, pdf_only: b
                     'timestamp': datetime.now().isoformat()
                 })
                 continue
-
-            # Sauvegarder le fichier
-            filepath = url_to_filepath(url, output_dir)
-
-            # Détecter si c'est du texte ou du binaire
-            content_type = resp.headers.get("Content-Type", "")
-            is_text = any(
-                t in content_type
-                for t in ["text/", "xml", "html", "json", "javascript", "css"]
-            )
-
-            # Si c'est du HTML/XML et que l'URL n'a pas d'extension, ajouter .html
-            parsed = urllib.parse.urlparse(url)
-            has_extension = '.' in parsed.path.split('/')[-1] if parsed.path else False
-            if is_text and 'html' in content_type.lower() and not has_extension:
-                # Remplacer ou ajouter l'extension .html
-                if filepath.endswith('\\\\?\\'):
-                    filepath = filepath + 'index.html'
-                else:
-                    filepath = filepath + '.html'
 
             try:
                 dir_path = os.path.dirname(filepath)
@@ -391,14 +501,21 @@ def crawl(start_url: str, output_dir: str, user: str, password: str, pdf_only: b
                         if chunk:
                             f.write(chunk)
 
+            # Sauvegarder la taille réelle dans le cache
+            content_cache[url] = {
+                'size': actual_size if 'actual_size' in locals() else remote_size,
+                'timestamp': datetime.now().isoformat(),
+                'filepath': filepath
+            }
+
             # En mode PDF uniquement, ne sauvegarder que les PDFs dans les résultats
             should_save_result = not pdf_only or is_pdf
 
             if should_save_result:
-                # Utiliser le Content-Length ou la taille du fichier
-                content_length = int(resp.headers.get("Content-Length", 0))
-                if not content_length:
-                    content_length = os.path.getsize(filepath) if os.path.exists(filepath) else 0
+                # Utiliser remote_size ou calculer depuis le fichier
+                content_length = remote_size if remote_size else (
+                    os.path.getsize(filepath) if os.path.exists(filepath) else 0
+                )
 
                 # Ajouter au mapping
                 url_hash = hashlib.md5(url.encode()).hexdigest()[:12]
@@ -449,13 +566,21 @@ def crawl(start_url: str, output_dir: str, user: str, password: str, pdf_only: b
             time.sleep(0.3 + random.uniform(0, 0.3))
 
             # Affichage du progrès
-            if (downloaded_count + skipped_count) % 10 == 0:
+            if (downloaded_count + skipped_count + skipped_identical) % 10 == 0:
                 if pdf_only:
                     logger.info(f"[PROGRESS] Explorees: {len(visited)}, PDFs: {pdfs_found}, En attente: {len(to_visit)}")
                 else:
-                    logger.info(f"[PROGRESS] Telecharges: {downloaded_count}, En attente: {len(to_visit)}")
+                    logger.info(f"[PROGRESS] Telecharges: {downloaded_count}, Ignores: {skipped_identical}, En attente: {len(to_visit)}")
 
-    logger.info(f"\n==> {downloaded_count} fichier(s) telecharge(s), {skipped_count} exclu(s)")
+    # Sauvegarder le cache de contenu
+    try:
+        with open(cache_path, 'w', encoding='utf-8') as f:
+            json.dump(content_cache, f, indent=2)
+        logger.info(f"Cache sauvegardé: {len(content_cache)} fichiers")
+    except Exception as e:
+        logger.warning(f"Impossible de sauvegarder le cache: {e}")
+
+    logger.info(f"\n==> {downloaded_count} fichier(s) telecharge(s), {skipped_count} exclu(s), {skipped_identical} identique(s)")
     if pdf_only:
         logger.info(f"==> {pdfs_found} PDFs collectes")
     logger.info(f"==> link.data : {link_data_path}")
@@ -476,13 +601,24 @@ def save_results(output_dir: str, results: list):
     if not results:
         return
 
-    # Export CSV
+    # Export CSV - s'assurer que tous les champs sont présents
     csv_file = os.path.join(output_dir, "crawl_results.csv")
+    # Définir tous les champs possibles
+    all_fields = {'url', 'status_code', 'content_type', 'content_length', 'timestamp', 'hash'}
+
+    # Collecter tous les champs utilisés
+    for result in results:
+        all_fields.update(result.keys())
+
+    fieldnames = sorted(list(all_fields))
+
     with open(csv_file, 'w', newline='', encoding='utf-8') as f:
-        fieldnames = results[0].keys()
-        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer = csv.DictWriter(f, fieldnames=fieldnames, extrasaction='ignore')
         writer.writeheader()
-        writer.writerows(results)
+        # S'assurer que tous les résultats ont tous les champs
+        for result in results:
+            row = {field: result.get(field, '') for field in fieldnames}
+            writer.writerow(row)
     logger.info(f"==> Résultats CSV : {csv_file}")
 
     # Export JSON

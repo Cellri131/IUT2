@@ -131,12 +131,33 @@ class ImageDownloader:
         if src.startswith('http://') or src.startswith('https://'):
             img_url = src
         else:
-            # Chemin relatif
-            # Nettoyer le chemin (enlever ../ au début)
-            clean_src = src.lstrip('./')
+            # Chemin relatif - calculer le chemin absolu depuis le fichier HTML
+            # Remonter depuis le fichier HTML
+            html_dir = html_file.parent
 
-            # Construire l'URL absolue depuis BASE_URL
-            img_url = urljoin(BASE_URL, clean_src)
+            # Résoudre le chemin relatif
+            # Par exemple: ../../../images/S4/img1.png depuis sortie/pedago/info2/R4_11/index.html
+            img_abs_path = (html_dir / src).resolve()
+
+            # Calculer le chemin relatif depuis input_dir
+            try:
+                img_rel_path = img_abs_path.relative_to(self.input_dir.resolve())
+            except ValueError:
+                # Le chemin sort de input_dir, essayer depuis la racine web
+                # Enlever les ../ et construire depuis pedago
+                clean_src = src
+                while clean_src.startswith('../'):
+                    clean_src = clean_src[3:]
+
+                # Construire l'URL depuis la base
+                img_url = urljoin(BASE_URL + 'pedago/', clean_src)
+                parsed = urlparse(img_url)
+                local_path = self.input_dir / unquote(parsed.path.lstrip('/'))
+                results.append((img_url, local_path))
+                return results
+
+            # Construire l'URL depuis le chemin local
+            img_url = urljoin(BASE_URL, str(img_rel_path).replace('\\', '/'))
 
         # Calculer le chemin local
         parsed = urlparse(img_url)

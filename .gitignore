@@ -1,19 +1,30 @@
-# Mirrored site output
-site/
-
 # Logs
-crawler.log
 *.log
+
+# Cache
+.content_cache.json
 
 # Python
 __pycache__/
-*.pyc
-.venv/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+*.egg-info/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
 
 # OS
-Thumbs.db
 .DS_Store
+Thumbs.db
 
-# Local config (credentials)
-.env
+*.env
 sortie/
+sortie/
+
