@@ -139,6 +139,12 @@ def extract_links(content: str, base_url: str, pdf_only: bool = False) -> list:
     """Extrait tous les liens (href, src) d'un contenu HTML/XML."""
     links = set()
 
+    # Détecter si c'est une page "Index of" Apache
+    is_index_page = '<title>Index of' in content or '<h1>Index of' in content
+
+    if is_index_page:
+        logger.info(f"    [INDEX] Page de répertoire détectée, extraction de tous les fichiers...")
+
     # Patterns pour href="..." et src="..."
     patterns = [
         re.compile(r'href\s*=\s*"([^"]*)"', re.IGNORECASE),
@@ -162,6 +168,13 @@ def extract_links(content: str, base_url: str, pdf_only: bool = False) -> list:
             # Ignorer les expressions XSL/XSLT ({$var}, {@attr}, {.}, etc.)
             if "{" in raw or "}" in raw:
                 continue
+            # Ignorer les liens de tri Apache (Name, Last modified, Size, Description)
+            if raw.startswith("?"):
+                continue
+            # Ignorer le lien "Parent Directory"
+            if raw == "../" and not is_index_page:
+                continue
+
             # Résoudre les URLs relatives
             absolute = urllib.parse.urljoin(base_url, raw)
             normalized = normalize_url(absolute)
@@ -170,6 +183,10 @@ def extract_links(content: str, base_url: str, pdf_only: bool = False) -> list:
                 # En mode PDF, garder tous les liens pour découvrir les PDFs
                 if not pdf_only or is_pdf_url(normalized) or not is_pdf_url(normalized):
                     links.add(normalized)
+
+                    # Si c'est une page Index of, log les fichiers trouvés
+                    if is_index_page and not raw.endswith('/') and raw != "../":
+                        logger.debug(f"      Fichier trouvé: {raw}")
 
     # Meta redirections
     try:
@@ -371,7 +388,7 @@ def crawl(start_url: str, output_dir: str, user: str, password: str, pdf_only: b
                             remote_size = os.path.getsize(filepath)
                             logger.debug(f"    Taille locale: {remote_size} bytes")
                         # Vérifier aussi avec extension .html
-                        elif hasextension and os.path.exists(filepath + '.html'):
+                        elif not has_extension and os.path.exists(filepath + '.html'):
                             remote_size = os.path.getsize(filepath + '.html')
                             filepath = filepath + '.html'
                             logger.debug(f"    Taille locale (.html): {remote_size} bytes")
@@ -561,6 +578,27 @@ def crawl(start_url: str, output_dir: str, user: str, password: str, pdf_only: b
                     pdf_links = [link for link in links if is_pdf_url(link)]
                     if pdf_links:
                         logger.info(f"    [PDF] {len(pdf_links)} liens PDF trouves")
+
+            # Explorer le répertoire parent pour découvrir d'autres fichiers
+            # (pages "Index of" Apache)
+            parsed_url = urllib.parse.urlparse(url)
+            path = parsed_url.path
+            if '/' in path and not path.endswith('/'):
+                # C'est un fichier, essayer de visiter son répertoire parent
+                parent_path = '/'.join(path.split('/')[:-1]) + '/'
+                parent_url = urllib.parse.urlunparse(
+                    (parsed_url.scheme, parsed_url.netloc, parent_path, '', '', '')
+                )
+                parent_url = normalize_url(parent_url)
+
+                if (
+                    parent_url not in visited
+                    and is_same_domain(parent_url)
+                    and not is_excluded(parent_url)
+                    and parent_url not in to_visit
+                ):
+                    logger.debug(f"    [DIR] Ajout du répertoire parent: {parent_url}")
+                    to_visit.append(parent_url)
 
             # Politesse : petite pause entre les requêtes
             time.sleep(0.3 + random.uniform(0, 0.3))
