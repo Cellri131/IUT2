@@ -13,6 +13,8 @@ Ce script:
 2. Télécharge la page depuis le serveur
 3. Applique les transformations CSS/JS
 4. Sauvegarde le fichier
+
+Note: Les identifiants doivent être configurés avec setup_credentials.py
 """
 
 import os
@@ -47,32 +49,27 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def load_credentials():
-    """Charge les identifiants depuis le fichier de configuration."""
-    if CREDENTIALS_FILE.exists():
-        with open(CREDENTIALS_FILE, 'r') as f:
-            return json.load(f)
-    return None
-
-
-def save_credentials(user: str, password: str):
-    """Sauvegarde les identifiants."""
-    with open(CREDENTIALS_FILE, 'w') as f:
-        json.dump({'user': user, 'password': password}, f)
-    logger.info(f"Identifiants sauvegardés dans {CREDENTIALS_FILE}")
-
-
 def get_credentials():
-    """Récupère les identifiants (fichier ou input)."""
-    creds = load_credentials()
-    if creds:
-        return creds['user'], creds['password']
+    """Récupère les identifiants depuis le fichier de configuration."""
+    if not CREDENTIALS_FILE.exists():
+        print(f"\n{'='*60}")
+        print(f"[ERREUR] Identifiants non configurés")
+        print(f"{'='*60}")
+        print(f"Vous devez d'abord configurer vos identifiants.")
+        print(f"Exécutez cette commande :")
+        print(f"\n  python \"{CREDENTIALS_FILE.parent / 'setup_credentials.py'}\"")
+        print(f"\n{'='*60}\n")
+        sys.exit(1)
 
-    print("Identifiants non trouvés. Entrez-les une fois pour les sauvegarder:")
-    user = input("Utilisateur: ").strip()
-    password = input("Mot de passe: ").strip()
-    save_credentials(user, password)
-    return user, password
+    try:
+        with open(CREDENTIALS_FILE, 'r') as f:
+            creds = json.load(f)
+        return creds['user'], creds['password']
+    except Exception as e:
+        print(f"\n[ERREUR] Impossible de lire les identifiants: {e}")
+        print(f"Fichier: {CREDENTIALS_FILE}")
+        print(f"\nRéexécutez setup_credentials.py pour les configurer.")
+        sys.exit(1)
 
 
 def parse_file_path(arg: str) -> Path:
@@ -156,6 +153,10 @@ def download_page(url: str, user: str, password: str) -> tuple:
     resp = session.get(url, timeout=30)
     resp.raise_for_status()
 
+    # Forcer l'encodage UTF-8 si non spécifié ou mal détecté
+    if resp.encoding is None or resp.encoding.lower() == 'iso-8859-1':
+        resp.encoding = 'utf-8'
+
     return resp.text, resp.headers.get('Content-Type', '')
 
 
@@ -195,6 +196,13 @@ def apply_transformations(content: str, file_path: Path, output_dir: Path) -> st
         head = soup.new_tag('head')
         if soup.html:
             soup.html.insert(0, head)
+
+    # S'assurer que l'encodage UTF-8 est déclaré
+    existing_charset = head.find('meta', charset=True) or head.find('meta', attrs={'http-equiv': 'Content-Type'})
+    if not existing_charset:
+        meta_charset = soup.new_tag('meta')
+        meta_charset['charset'] = 'utf-8'
+        head.insert(0, meta_charset)
 
     # Supprimer les anciens liens CSS
     for link in head.find_all('link', {'rel': 'stylesheet'}):
@@ -338,6 +346,8 @@ def main():
         print()
         print("Exemple:")
         print(f'  python {sys.argv[0]} ./sortie/pedago/index.html')
+        print()
+        print("Note: Configurez vos identifiants avec setup_credentials.py")
         sys.exit(1)
 
     # Parser le chemin

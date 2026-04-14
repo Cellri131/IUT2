@@ -176,30 +176,24 @@
     const oldModal = document.querySelector('.refresh-modal');
     if (oldModal) oldModal.remove();
 
-    // Calculer le chemin vers refresh_page.py (dans le dossier css)
-    let scriptPath = '';
-    const currentPath = window.location.pathname;
-    const pedagogIndex = currentPath.indexOf('/pedago/');
+    // Calculer le chemin vers les scripts Python (dans le dossier css)
+    let cssDir = '';
 
-    if (pedagogIndex !== -1) {
-      // Calculer le chemin relatif vers pedago/css/
-      const pathAfterPedago = currentPath.substring(pedagogIndex + 8); // après "/pedago/"
-      const depth = (pathAfterPedago.match(/\//g) || []).length;
-
-      if (depth > 0) {
-        scriptPath = '../'.repeat(depth) + 'css/refresh_page.py';
+    if (window.location.protocol === 'file:') {
+      // Trouver le chemin absolu du dossier contenant le fichier
+      let currentDir = filePath.replace(/\\/g, '/');
+      // Remonter jusqu'à trouver 'pedago'
+      const pedagogIndex = currentDir.toLowerCase().indexOf('/pedago/');
+      if (pedagogIndex !== -1) {
+        cssDir = currentDir.substring(0, pedagogIndex) + '/pedago/css/';
       } else {
-        scriptPath = 'css/refresh_page.py';
+        cssDir = 'css/';
       }
-    } else {
-      scriptPath = 'pedago/css/refresh_page.py';
     }
 
-    // Construire la commande
-    const command = `python "${scriptPath}" "${filePath}"`;
-
-    // Chemin vers register_protocol.py (même dossier que refresh_page.py)
-    const registerPath = scriptPath.replace('refresh_page.py', 'register_protocol.py');
+    const refreshCommand = `python "${cssDir}refresh_page.py" "${filePath}"`;
+    const setupCommand = `python "${cssDir}setup_credentials.py"`;
+    const registerCommand = `python "${cssDir}register_protocol.py"`;
 
     const modal = document.createElement('div');
     modal.className = 'refresh-modal';
@@ -207,9 +201,17 @@
       <div class="refresh-modal-content">
         <button class="refresh-modal-close">&times;</button>
         <h3>Rafraîchir la page</h3>
-        <p>Pour télécharger la dernière version de cette page depuis le serveur, exécutez cette commande :</p>
+
+        <div class="setup-warning">
+          <strong>⚠️ Première utilisation ?</strong>
+          <p>Configurez vos identifiants une seule fois :</p>
+          <code class="setup-cmd">${escapeHtml(setupCommand)}</code>
+          <p class="small-text">Ensuite vous n'aurez plus à les rentrer.</p>
+        </div>
+
+        <p>Commande de rafraîchissement :</p>
         <div class="refresh-command">
-          <code>${escapeHtml(command)}</code>
+          <code id="refresh-command-code">${escapeHtml(refreshCommand)}</code>
           <button class="copy-btn" title="Copier">
             <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
               <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
@@ -217,12 +219,13 @@
           </button>
         </div>
         <p class="refresh-note">Puis rechargez cette page (F5) pour voir les modifications.</p>
+
         <div class="refresh-setup">
           <details>
-            <summary>Configuration unique (optionnel)</summary>
-            <p>Pour activer le bouton de rafraîchissement direct, exécutez une fois :</p>
-            <code>python "${registerPath}"</code>
-            <p>Cela enregistre le protocole <code>iut-refresh://</code> sur votre système.</p>
+            <summary>Configuration avancée (optionnel)</summary>
+            <p>Pour activer le clic direct (sans copier/coller), exécutez une fois :</p>
+            <code id="register-command-code">${escapeHtml(registerCommand)}</code>
+            <p class="small-text">Cela enregistre le protocole <code>iut-refresh://</code> sur votre système.</p>
           </details>
         </div>
       </div>
@@ -251,10 +254,12 @@
       background: var(--bg-primary);
       padding: 24px;
       border-radius: 16px;
-      max-width: 600px;
+      max-width: 650px;
       width: 90%;
       box-shadow: var(--shadow-xl);
       position: relative;
+      max-height: 90vh;
+      overflow-y: auto;
     `;
 
     // Style du bouton fermer
@@ -290,6 +295,45 @@
       `;
     });
 
+    // Style du warning setup
+    const setupWarning = modal.querySelector('.setup-warning');
+    setupWarning.style.cssText = `
+      background: linear-gradient(135deg, rgba(251, 146, 60, 0.1), rgba(245, 158, 11, 0.1));
+      border: 2px solid var(--color-orange);
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 20px;
+    `;
+
+    const setupCmd = modal.querySelector('.setup-cmd');
+    setupCmd.style.cssText = `
+      display: block;
+      background: var(--bg-tertiary);
+      padding: 10px 12px;
+      border-radius: 6px;
+      margin: 10px 0;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: var(--color-orange);
+      cursor: pointer;
+      border: 1px solid var(--border-color);
+    `;
+    setupCmd.title = "Cliquer pour copier";
+    setupCmd.onclick = () => {
+      navigator.clipboard.writeText(setupCommand);
+      const original = setupCmd.textContent;
+      setupCmd.textContent = '✓ Copié !';
+      setTimeout(() => { setupCmd.textContent = original; }, 2000);
+    };
+
+    modal.querySelectorAll('.small-text').forEach(el => {
+      el.style.cssText = `
+        font-size: 12px;
+        color: var(--text-secondary);
+        margin: 8px 0 0 0;
+      `;
+    });
+
     // Style de la commande
     const commandDiv = modal.querySelector('.refresh-command');
     commandDiv.style.cssText = `
@@ -303,11 +347,11 @@
       border: 1px solid var(--border-color);
     `;
 
-    const code = commandDiv.querySelector('code');
-    code.style.cssText = `
+    const commandCode = modal.querySelector('#refresh-command-code');
+    commandCode.style.cssText = `
       flex: 1;
       font-family: 'JetBrains Mono', monospace;
-      font-size: 13px;
+      font-size: 12px;
       color: var(--color-green);
       word-break: break-all;
     `;
@@ -324,14 +368,14 @@
       display: flex;
       align-items: center;
       justify-content: center;
+      flex-shrink: 0;
     `;
     copyBtn.onclick = () => {
-      navigator.clipboard.writeText(command).then(() => {
-        copyBtn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/></svg>';
-        setTimeout(() => {
-          copyBtn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>';
-        }, 2000);
-      });
+      navigator.clipboard.writeText(refreshCommand);
+      copyBtn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/></svg>';
+      setTimeout(() => {
+        copyBtn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>';
+      }, 2000);
     };
 
     // Note
@@ -368,18 +412,26 @@
       padding: 8px 0;
     `;
 
-    setup.querySelectorAll('code').forEach(c => {
-      c.style.cssText = `
-        display: block;
-        background: var(--bg-tertiary);
-        padding: 8px 12px;
-        border-radius: 6px;
-        margin: 8px 0;
-        font-family: 'JetBrains Mono', monospace;
-        font-size: 12px;
-        color: var(--color-purple);
-      `;
-    });
+    const registerCode = modal.querySelector('#register-command-code');
+    registerCode.style.cssText = `
+      display: block;
+      background: var(--bg-tertiary);
+      padding: 8px 12px;
+      border-radius: 6px;
+      margin: 8px 0;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: var(--color-purple);
+      cursor: pointer;
+      border: 1px solid var(--border-color);
+    `;
+    registerCode.title = "Cliquer pour copier";
+    registerCode.onclick = () => {
+      navigator.clipboard.writeText(registerCommand);
+      const original = registerCode.textContent;
+      registerCode.textContent = '✓ Copié !';
+      setTimeout(() => { registerCode.textContent = original; }, 2000);
+    };
 
     // Fermer avec Escape ou clic en dehors
     modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
