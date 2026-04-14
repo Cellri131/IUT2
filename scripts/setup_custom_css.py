@@ -76,29 +76,31 @@ class CSSSetup:
         logger.info(f"  ✓ Dossier CSS recréé")
 
     def _create_custom_css(self):
-        """Copie les fichiers rb.css et rb.js depuis assets."""
+        """Copie les fichiers depuis assets (CSS, JS, scripts Python)."""
         logger.info("Copie des fichiers depuis assets...")
 
-        # Copier rb.css
-        source_css = self.assets_dir / "rb.css"
-        dest_css = self.css_dir / "rb.css"
+        # Liste des fichiers à copier
+        files_to_copy = [
+            ('rb.css', True),           # (nom, obligatoire)
+            ('rb.js', True),
+            ('refresh_page.py', False),
+            ('register_protocol.py', False),
+        ]
 
-        if not source_css.exists():
-            logger.error(f"Erreur: {source_css} n'existe pas!")
-            raise FileNotFoundError(f"Le fichier rb.css n'existe pas dans assets")
+        for filename, required in files_to_copy:
+            source = self.assets_dir / filename
+            dest = self.css_dir / filename
 
-        shutil.copy2(source_css, dest_css)
-        logger.info(f"  ✓ Fichier rb.css copié")
+            if not source.exists():
+                if required:
+                    logger.error(f"Erreur: {source} n'existe pas!")
+                    raise FileNotFoundError(f"Le fichier {filename} n'existe pas dans assets")
+                else:
+                    logger.warning(f"  ⚠ {filename} non trouvé dans assets")
+                    continue
 
-        # Copier rb.js
-        source_js = self.assets_dir / "rb.js"
-        dest_js = self.css_dir / "rb.js"
-
-        if not source_js.exists():
-            logger.warning(f"  ⚠ rb.js non trouvé dans assets")
-        else:
-            shutil.copy2(source_js, dest_js)
-            logger.info(f"  ✓ Fichier rb.js copié")
+            shutil.copy2(source, dest)
+            logger.info(f"  ✓ Fichier {filename} copié")
 
     def _clean_all_html_files(self):
         """Nettoie tous les fichiers HTML."""
@@ -185,6 +187,25 @@ class CSSSetup:
                 script_tag = soup.new_tag('script', src=js_path)
                 script_tag['defer'] = ''
                 head.append(script_tag)
+
+            # Ajouter la meta tag avec l'URL originale
+            # Déduire l'URL originale depuis le chemin du fichier
+            original_url_meta = soup.find('meta', {'name': 'original-url'})
+            if not original_url_meta:
+                # Construire l'URL originale
+                rel_path = html_file.relative_to(self.input_dir)
+                url_path = '/'.join(rel_path.parts)
+                # Remplacer .html par .xml pour les fichiers convertis
+                if url_path.endswith('.html'):
+                    # Vérifier si c'était un fichier XML converti
+                    xml_path = html_file.with_suffix('.xml')
+                    if not xml_path.exists():
+                        url_path = url_path[:-5] + '.xml'
+                original_url = f'https://diw.iut.univ-lehavre.fr/{url_path}'
+                meta_tag = soup.new_tag('meta')
+                meta_tag['name'] = 'original-url'
+                meta_tag['content'] = original_url
+                head.insert(0, meta_tag)
 
         # 5. Ajouter le conteneur si pas déjà présent (pas de button retour, le JS va les créer)
         body = soup.find('body')
