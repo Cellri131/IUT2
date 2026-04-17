@@ -85,6 +85,62 @@ def is_pdf_url(url: str) -> bool:
     return path.endswith('.pdf')
 
 
+def detect_encoding(raw_bytes: bytes, content_type: str = "") -> str:
+    """Détecte l'encodage correct du contenu.
+
+    Ordre de priorité :
+    1. Déclaration XML (<?xml ... encoding="..."?>)
+    2. Meta charset HTML
+    3. Content-Type header
+    4. Fallback: utf-8
+    """
+    # 1. Vérifier la déclaration XML
+    header = raw_bytes[:500]
+    xml_match = re.search(rb'<\?xml[^?]*encoding=["\']([^"\']+)["\']', header)
+    if xml_match:
+        declared = xml_match.group(1).decode('ascii').lower()
+        # iso-8859-1 est souvent du windows-1252 en pratique
+        if declared in ('iso-8859-1', 'iso_8859_1', 'latin-1', 'latin1'):
+            return 'windows-1252'
+        return declared
+
+    # 2. Vérifier meta charset HTML
+    meta_match = re.search(rb'<meta[^>]*charset=["\']?([^"\';\s>]+)', header, re.IGNORECASE)
+    if meta_match:
+        declared = meta_match.group(1).decode('ascii').lower()
+        if declared in ('iso-8859-1', 'iso_8859_1', 'latin-1', 'latin1'):
+            return 'windows-1252'
+        return declared
+
+    # 3. Content-Type header
+    if 'charset=' in content_type.lower():
+        charset_match = re.search(r'charset=([^\s;]+)', content_type, re.IGNORECASE)
+        if charset_match:
+            declared = charset_match.group(1).lower().strip('"\'')
+            if declared in ('iso-8859-1', 'iso_8859_1', 'latin-1', 'latin1'):
+                return 'windows-1252'
+            return declared
+
+    # 4. Essayer UTF-8
+    try:
+        raw_bytes.decode('utf-8')
+        return 'utf-8'
+    except UnicodeDecodeError:
+        return 'windows-1252'
+
+
+def decode_content(raw_bytes: bytes, content_type: str = "") -> str:
+    """Décode le contenu brut avec le bon encodage et renvoie de l'UTF-8."""
+    encoding = detect_encoding(raw_bytes, content_type)
+    try:
+        text = raw_bytes.decode(encoding)
+    except (UnicodeDecodeError, LookupError):
+        # Fallback
+        text = raw_bytes.decode('windows-1252', errors='replace')
+
+    return text
+
+
 def normalize_url(url: str) -> str:
     """Normalise l'URL (supprime fragment, trailing spaces, paramètres de tracking)."""
     url = url.strip()
@@ -441,7 +497,8 @@ def crawl(start_url: str, output_dir: str, user: str, password: str, pdf_only: b
                     if is_text and not is_pdf:
                         try:
                             resp = session.get(url, timeout=60)
-                            links = extract_links(resp.text, url, pdf_only)
+                            page_text = decode_content(resp.content, resp.headers.get('Content-Type', ''))
+                            links = extract_links(page_text, url, pdf_only)
 
                             link_file.write(f"-------------------\n")
                             link_file.write(f"page {url}\n")
@@ -483,7 +540,7 @@ def crawl(start_url: str, output_dir: str, user: str, password: str, pdf_only: b
                 )
 
                 if is_text:
-                    actual_size = len(resp.text.encode('utf-8'))
+                    actual_size = len(decode_content(resp.content, content_type).encode('utf-8'))
                 else:
                     actual_size = len(resp.content)
 
@@ -509,8 +566,9 @@ def crawl(start_url: str, output_dir: str, user: str, password: str, pdf_only: b
                 continue
 
             if is_text:
-                with open(filepath, "w", encoding="utf-8", errors="replace") as f:
-                    f.write(resp.text)
+                page_text = decode_content(resp.content, content_type)
+                with open(filepath, "w", encoding="utf-8") as f:
+                    f.write(page_text)
             else:
                 # Télécharger en streaming pour les fichiers volumineux
                 with open(filepath, "wb") as f:
@@ -554,7 +612,7 @@ def crawl(start_url: str, output_dir: str, user: str, password: str, pdf_only: b
 
             # Extraire les liens et écrire dans link.data
             if is_text:
-                links = extract_links(resp.text, url, pdf_only)
+                links = extract_links(page_text, url, pdf_only)
 
                 link_file.write(f"-------------------\n")
                 link_file.write(f"page {url}\n")

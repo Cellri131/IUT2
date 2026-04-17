@@ -83,9 +83,6 @@ class CSSSetup:
         files_to_copy = [
             ('rb.css', True),           # (nom, obligatoire)
             ('rb.js', True),
-            ('refresh_page.py', False),
-            ('register_protocol.py', False),
-            ('setup_credentials.py', False),
         ]
 
         for filename, required in files_to_copy:

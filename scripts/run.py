@@ -1,35 +1,48 @@
 #!/usr/bin/env python3
 """
-Launcher interactif pour le crawler.
-Double-clique sur ce fichier pour lancer le crawler facilement.
+Launcher pour le crawler.
+Peut être utilisé en interactif ou avec des arguments (pour le serveur/cron).
+
+Usage interactif:
+    python run.py
+
+Usage automatique (serveur/cron):
+    python run.py <output_dir> <user> <password>
 """
 
 import os
 import sys
 import subprocess
 
+
 def main():
-    print("="*60)
-    print("CRAWLER IUT2 - LAUNCHER INTERACTIF")
-    print("="*60)
-    print()
+    scripts_dir = os.path.dirname(os.path.abspath(__file__))
 
-    # Demander le dossier de sortie
-    default_output = "sortie"
-    output_dir = input(f"Dossier de sortie [{default_output}]: ").strip() or default_output
+    # Mode automatique (arguments fournis)
+    if len(sys.argv) >= 4:
+        output_dir = sys.argv[1]
+        user = sys.argv[2]
+        password = sys.argv[3]
+        pdf_only = len(sys.argv) > 4 and sys.argv[4] == '--pdf-only'
+    else:
+        # Mode interactif
+        print("="*60)
+        print("CRAWLER IUT2 - LAUNCHER INTERACTIF")
+        print("="*60)
+        print()
 
-    # Demander l'identifiant
-    default_user = "etInfo"
-    user = input(f"Identifiant [{default_user}]: ").strip() or default_user
+        default_output = "sortie"
+        output_dir = input(f"Dossier de sortie [{default_output}]: ").strip() or default_output
 
-    # Demander le mot de passe
-    password = input("Mot de passe: ").strip()
-    if not password:
-        print("Erreur: Le mot de passe ne peut pas être vide!")
-        sys.exit(1)
+        default_user = "etInfo"
+        user = input(f"Identifiant [{default_user}]: ").strip() or default_user
 
-    # Demander le mode PDF (optionnel)
-    pdf_only = input("Mode PDF uniquement ? (o/N): ").strip().lower() == 'o'
+        password = input("Mot de passe: ").strip()
+        if not password:
+            print("Erreur: Le mot de passe ne peut pas être vide!")
+            sys.exit(1)
+
+        pdf_only = input("Mode PDF uniquement ? (o/N): ").strip().lower() == 'o'
 
     print()
     print("="*60)
@@ -38,7 +51,7 @@ def main():
     print()
 
     # Construire la commande
-    crawler_script = os.path.join(os.path.dirname(__file__), "crawler.py")
+    crawler_script = os.path.join(scripts_dir, "crawler.py")
     cmd = [sys.executable, crawler_script, output_dir, user, password]
 
     if pdf_only:
@@ -54,26 +67,26 @@ def main():
         print("="*60)
         print("ÉTAPE 2/4: Conversion XML → HTML...")
         print("="*60)
-        converter_script = os.path.join(os.path.dirname(__file__), "xml_to_html_converter.py")
+        converter_script = os.path.join(scripts_dir, "xml_to_html_converter.py")
         subprocess.run([sys.executable, converter_script, output_dir], check=True)
 
         print()
         print("="*60)
         print("ÉTAPE 3/4: Téléchargement des images...")
         print("="*60)
-        images_script = os.path.join(os.path.dirname(__file__), "download_images.py")
+        images_script = os.path.join(scripts_dir, "download_images.py")
         subprocess.run([sys.executable, images_script, output_dir, user, password], check=True)
 
         print()
         print("="*60)
         print("ÉTAPE 4/4: Configuration du CSS personnalisé...")
         print("="*60)
-        css_setup_script = os.path.join(os.path.dirname(__file__), "setup_custom_css.py")
+        css_setup_script = os.path.join(scripts_dir, "setup_custom_css.py")
         subprocess.run([sys.executable, css_setup_script, output_dir], check=True)
 
         print()
         print("="*60)
-        print("✓ TERMINÉ !")
+        print("TERMINÉ !")
         print("="*60)
         print(f"Les fichiers sont disponibles dans: {output_dir}")
 

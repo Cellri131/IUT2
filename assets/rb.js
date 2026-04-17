@@ -1,4 +1,4 @@
-// rb.js - Gestion du thème coloré et améliorations UX
+// rb.js - Gestion du thème, toolbar, refresh API et améliorations UX
 (function() {
   'use strict';
 
@@ -11,503 +11,146 @@
 
   // ========== Gestion du thème ==========
   function initTheme() {
-    const savedTheme = localStorage.getItem('theme');
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    const theme = savedTheme || (prefersDark ? 'dark' : 'light');
-    setTheme(theme);
+    var saved = localStorage.getItem('theme');
+    var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    setTheme(saved || (prefersDark ? 'dark' : 'light'));
 
     window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function(e) {
-      if (!localStorage.getItem('theme')) {
-        setTheme(e.matches ? 'dark' : 'light');
-      }
+      if (!localStorage.getItem('theme')) setTheme(e.matches ? 'dark' : 'light');
     });
   }
 
   function setTheme(theme) {
-    const html = document.documentElement;
-    const toggleBtn = document.querySelector('.theme-toggle');
+    var html = document.documentElement;
+    var btn = document.querySelector('.theme-toggle');
+    var sun = '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>';
+    var moon = '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>';
 
     if (theme === 'dark') {
       html.setAttribute('data-theme', 'dark');
-      localStorage.setItem('theme', 'dark');
-      if (toggleBtn) toggleBtn.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>';
+      if (btn) btn.innerHTML = sun;
     } else {
       html.removeAttribute('data-theme');
-      localStorage.setItem('theme', 'light');
-      if (toggleBtn) toggleBtn.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>';
+      if (btn) btn.innerHTML = moon;
     }
+    localStorage.setItem('theme', theme);
   }
 
   function toggleTheme() {
-    const html = document.documentElement;
-    const newTheme = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
-    setTheme(newTheme);
+    setTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
   }
 
-  // ========== Barre d'outils ==========
+  // ========== Toolbar ==========
   function setupToolbar() {
-    const body = document.body;
-    let toolbar = document.querySelector('.toolbar');
+    if (document.querySelector('.toolbar')) return;
 
-    if (!toolbar) {
-      toolbar = document.createElement('div');
-      toolbar.className = 'toolbar';
+    var toolbar = document.createElement('div');
+    toolbar.className = 'toolbar';
 
-      // Bouton retour
-      const backBtn = document.createElement('button');
-      backBtn.className = 'btn back-button';
-      backBtn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M19 12H5M12 19l-7-7 7-7"/></svg> Retour';
-      backBtn.onclick = () => history.back();
+    // Bouton retour
+    var backBtn = document.createElement('button');
+    backBtn.className = 'btn back-button';
+    backBtn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M19 12H5M12 19l-7-7 7-7"/></svg> Retour';
+    backBtn.onclick = function() { history.back(); };
 
-      // Bouton thème
-      const themeBtn = document.createElement('button');
-      themeBtn.className = 'btn theme-toggle';
-      const currentTheme = document.documentElement.getAttribute('data-theme');
-      themeBtn.innerHTML = currentTheme === 'dark'
-        ? '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>'
-        : '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>';
-      themeBtn.title = 'Basculer thème (Alt+T)';
-      themeBtn.onclick = toggleTheme;
+    // Bouton thème
+    var themeBtn = document.createElement('button');
+    themeBtn.className = 'btn theme-toggle';
+    themeBtn.title = 'Basculer thème (Alt+T)';
+    themeBtn.onclick = toggleTheme;
 
-      // Bouton rafraîchir
-      const refreshBtn = document.createElement('button');
-      refreshBtn.className = 'btn refresh-button';
-      refreshBtn.innerHTML = '<svg class="refresh-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>';
-      refreshBtn.title = 'Rafraîchir depuis le serveur (Alt+R)';
-      refreshBtn.onclick = refreshPage;
+    // Bouton rafraîchir
+    var refreshBtn = document.createElement('button');
+    refreshBtn.className = 'btn refresh-button';
+    refreshBtn.innerHTML = '<svg class="refresh-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>';
+    refreshBtn.title = 'Rafraîchir depuis le serveur (Alt+R)';
+    refreshBtn.onclick = refreshPage;
 
-      toolbar.appendChild(backBtn);
-      toolbar.appendChild(themeBtn);
-      toolbar.appendChild(refreshBtn);
-      body.insertBefore(toolbar, body.firstChild);
-    } else {
-      // S'assurer que les boutons existent
-      if (!document.querySelector('.theme-toggle')) {
-        const themeBtn = document.createElement('button');
-        themeBtn.className = 'btn theme-toggle';
-        themeBtn.innerHTML = document.documentElement.getAttribute('data-theme') === 'dark'
-          ? '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>'
-          : '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>';
-        themeBtn.onclick = toggleTheme;
-        toolbar.appendChild(themeBtn);
-      }
+    toolbar.appendChild(backBtn);
+    toolbar.appendChild(themeBtn);
+    toolbar.appendChild(refreshBtn);
+    document.body.insertBefore(toolbar, document.body.firstChild);
 
-      if (!document.querySelector('.refresh-button')) {
-        const refreshBtn = document.createElement('button');
-        refreshBtn.className = 'btn refresh-button';
-        refreshBtn.innerHTML = '<svg class="refresh-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>';
-        refreshBtn.title = 'Rafraîchir depuis le serveur (Alt+R)';
-        refreshBtn.onclick = refreshPage;
-        toolbar.appendChild(refreshBtn);
-      }
-    }
+    // Appliquer le thème au bouton
+    setTheme(localStorage.getItem('theme') || 'light');
   }
 
-  // ========== Rafraîchissement de la page ==========
+  // ========== Rafraîchissement via API serveur ==========
   function refreshPage() {
-    const refreshBtn = document.querySelector('.refresh-button');
-    const refreshIcon = refreshBtn.querySelector('.refresh-icon');
+    var btn = document.querySelector('.refresh-button');
+    var icon = btn.querySelector('.refresh-icon');
 
-    // Obtenir le chemin du fichier actuel
-    let filePath = '';
+    btn.disabled = true;
+    btn.classList.add('loading');
+    icon.style.animation = 'spin 1s linear infinite';
 
-    // Si on est en file://, on peut récupérer le chemin
-    if (window.location.protocol === 'file:') {
-      // Convertir file:///C:/path/to/file.html en C:\path\to\file.html
-      filePath = decodeURIComponent(window.location.pathname);
-      // Supprimer le / initial sur Windows
-      if (filePath.startsWith('/') && filePath.charAt(2) === ':') {
-        filePath = filePath.substring(1);
-      }
-      // Convertir les / en \
-      filePath = filePath.replace(/\//g, '\\');
-    } else {
-      // Si on est sur un serveur local, utiliser le pathname
-      filePath = window.location.pathname;
-    }
+    var pagePath = window.location.pathname;
 
-    // Animation de chargement
-    refreshBtn.classList.add('loading');
-    refreshIcon.style.animation = 'spin 1s linear infinite';
-
-    // Essayer d'utiliser le protocole personnalisé
-    const protocolUrl = 'iut-refresh://' + encodeURIComponent(filePath);
-
-    // Créer un iframe caché pour déclencher le protocole
-    const iframe = document.createElement('iframe');
-    iframe.style.display = 'none';
-    document.body.appendChild(iframe);
-
-    // Timeout pour détecter si le protocole n'est pas enregistré
-    let protocolHandled = false;
-
-    // Listener pour détecter si on quitte la page (protocole fonctionne)
-    window.addEventListener('blur', function onBlur() {
-      protocolHandled = true;
-      window.removeEventListener('blur', onBlur);
-    });
-
-    // Essayer le protocole
-    try {
-      iframe.contentWindow.location.href = protocolUrl;
-    } catch (e) {
-      // Le protocole n'est probablement pas enregistré
-    }
-
-    // Après un délai, vérifier si le protocole a fonctionné
-    setTimeout(() => {
-      document.body.removeChild(iframe);
-      refreshBtn.classList.remove('loading');
-      refreshIcon.style.animation = '';
-
-      if (!protocolHandled) {
-        // Afficher les instructions
-        showRefreshInstructions(filePath);
+    fetch('/api/refresh', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ path: pagePath })
+    })
+    .then(function(resp) { return resp.json(); })
+    .then(function(data) {
+      if (data.success) {
+        showNotification('Page rafraîchie !', 'success');
+        setTimeout(function() { window.location.reload(); }, 600);
       } else {
-        // Le protocole a été déclenché, afficher un message
-        showNotification('Script de rafraîchissement lancé. Rechargez la page (F5) après.', 'info');
+        throw new Error(data.error || 'Erreur inconnue');
       }
-    }, 500);
-  }
-
-  // ========== Instructions de rafraîchissement ==========
-  function showRefreshInstructions(filePath) {
-    // Supprimer l'ancien modal s'il existe
-    const oldModal = document.querySelector('.refresh-modal');
-    if (oldModal) oldModal.remove();
-
-    // Calculer le chemin vers les scripts Python (dans le dossier css)
-    let cssDir = '';
-
-    if (window.location.protocol === 'file:') {
-      // Trouver le chemin absolu du dossier contenant le fichier
-      let currentDir = filePath.replace(/\\/g, '/');
-      // Remonter jusqu'à trouver 'pedago'
-      const pedagogIndex = currentDir.toLowerCase().indexOf('/pedago/');
-      if (pedagogIndex !== -1) {
-        cssDir = currentDir.substring(0, pedagogIndex) + '/pedago/css/';
-      } else {
-        cssDir = 'css/';
-      }
-    }
-
-    const refreshCommand = `python "${cssDir}refresh_page.py" "${filePath}"`;
-    const setupCommand = `python "${cssDir}setup_credentials.py"`;
-    const registerCommand = `python "${cssDir}register_protocol.py"`;
-
-    const modal = document.createElement('div');
-    modal.className = 'refresh-modal';
-    modal.innerHTML = `
-      <div class="refresh-modal-content">
-        <button class="refresh-modal-close">&times;</button>
-        <h3>Rafraîchir la page</h3>
-
-        <div class="setup-warning">
-          <strong>⚠️ Première utilisation ?</strong>
-          <p>Configurez vos identifiants une seule fois :</p>
-          <code class="setup-cmd">${escapeHtml(setupCommand)}</code>
-          <p class="small-text">Ensuite vous n'aurez plus à les rentrer.</p>
-        </div>
-
-        <p>Commande de rafraîchissement :</p>
-        <div class="refresh-command">
-          <code id="refresh-command-code">${escapeHtml(refreshCommand)}</code>
-          <button class="copy-btn" title="Copier">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-              <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
-            </svg>
-          </button>
-        </div>
-        <p class="refresh-note">Puis rechargez cette page (F5) pour voir les modifications.</p>
-
-        <div class="refresh-setup">
-          <details>
-            <summary>Configuration avancée (optionnel)</summary>
-            <p>Pour activer le clic direct (sans copier/coller), exécutez une fois :</p>
-            <code id="register-command-code">${escapeHtml(registerCommand)}</code>
-            <p class="small-text">Cela enregistre le protocole <code>iut-refresh://</code> sur votre système.</p>
-          </details>
-        </div>
-      </div>
-    `;
-
-    // Styles du modal
-    modal.style.cssText = `
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0, 0, 0, 0.8);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 10000;
-      animation: fadeIn 0.3s ease;
-    `;
-
-    document.body.appendChild(modal);
-
-    // Style du contenu
-    const content = modal.querySelector('.refresh-modal-content');
-    content.style.cssText = `
-      background: var(--bg-primary);
-      padding: 24px;
-      border-radius: 16px;
-      max-width: 650px;
-      width: 90%;
-      box-shadow: var(--shadow-xl);
-      position: relative;
-      max-height: 90vh;
-      overflow-y: auto;
-    `;
-
-    // Style du bouton fermer
-    const closeBtn = modal.querySelector('.refresh-modal-close');
-    closeBtn.style.cssText = `
-      position: absolute;
-      top: 12px;
-      right: 12px;
-      background: none;
-      border: none;
-      font-size: 24px;
-      cursor: pointer;
-      color: var(--text-secondary);
-      padding: 4px 8px;
-      border-radius: 4px;
-    `;
-    closeBtn.onclick = () => modal.remove();
-
-    // Style du titre
-    const title = modal.querySelector('h3');
-    title.style.cssText = `
-      margin: 0 0 16px 0;
-      color: var(--text-primary);
-      font-size: 20px;
-    `;
-
-    // Style des paragraphes
-    modal.querySelectorAll('p').forEach(p => {
-      p.style.cssText = `
-        margin: 12px 0;
-        color: var(--text-secondary);
-        font-size: 14px;
-      `;
+    })
+    .catch(function(err) {
+      showNotification('Erreur: ' + err.message, 'error');
+    })
+    .finally(function() {
+      btn.disabled = false;
+      btn.classList.remove('loading');
+      icon.style.animation = '';
     });
-
-    // Style du warning setup
-    const setupWarning = modal.querySelector('.setup-warning');
-    setupWarning.style.cssText = `
-      background: linear-gradient(135deg, rgba(251, 146, 60, 0.1), rgba(245, 158, 11, 0.1));
-      border: 2px solid var(--color-orange);
-      border-radius: 8px;
-      padding: 16px;
-      margin-bottom: 20px;
-    `;
-
-    const setupCmd = modal.querySelector('.setup-cmd');
-    setupCmd.style.cssText = `
-      display: block;
-      background: var(--bg-tertiary);
-      padding: 10px 12px;
-      border-radius: 6px;
-      margin: 10px 0;
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 12px;
-      color: var(--color-orange);
-      cursor: pointer;
-      border: 1px solid var(--border-color);
-    `;
-    setupCmd.title = "Cliquer pour copier";
-    setupCmd.onclick = () => {
-      navigator.clipboard.writeText(setupCommand);
-      const original = setupCmd.textContent;
-      setupCmd.textContent = '✓ Copié !';
-      setTimeout(() => { setupCmd.textContent = original; }, 2000);
-    };
-
-    modal.querySelectorAll('.small-text').forEach(el => {
-      el.style.cssText = `
-        font-size: 12px;
-        color: var(--text-secondary);
-        margin: 8px 0 0 0;
-      `;
-    });
-
-    // Style de la commande
-    const commandDiv = modal.querySelector('.refresh-command');
-    commandDiv.style.cssText = `
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      background: var(--bg-tertiary);
-      padding: 12px 16px;
-      border-radius: 8px;
-      margin: 16px 0;
-      border: 1px solid var(--border-color);
-    `;
-
-    const commandCode = modal.querySelector('#refresh-command-code');
-    commandCode.style.cssText = `
-      flex: 1;
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 12px;
-      color: var(--color-green);
-      word-break: break-all;
-    `;
-
-    // Bouton copier
-    const copyBtn = modal.querySelector('.copy-btn');
-    copyBtn.style.cssText = `
-      background: var(--gradient-primary);
-      border: none;
-      padding: 8px;
-      border-radius: 6px;
-      cursor: pointer;
-      color: white;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-    `;
-    copyBtn.onclick = () => {
-      navigator.clipboard.writeText(refreshCommand);
-      copyBtn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/></svg>';
-      setTimeout(() => {
-        copyBtn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>';
-      }, 2000);
-    };
-
-    // Note
-    const note = modal.querySelector('.refresh-note');
-    note.style.cssText = `
-      margin: 16px 0;
-      padding: 12px;
-      background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(147, 51, 234, 0.1));
-      border-radius: 8px;
-      border-left: 3px solid var(--color-blue);
-      color: var(--text-primary) !important;
-      font-weight: 500;
-    `;
-
-    // Section setup
-    const setup = modal.querySelector('.refresh-setup');
-    setup.style.cssText = `
-      margin-top: 20px;
-      padding-top: 16px;
-      border-top: 1px solid var(--border-color);
-    `;
-
-    const details = setup.querySelector('details');
-    details.style.cssText = `
-      font-size: 13px;
-      color: var(--text-secondary);
-    `;
-
-    const summary = details.querySelector('summary');
-    summary.style.cssText = `
-      cursor: pointer;
-      font-weight: 500;
-      color: var(--text-primary);
-      padding: 8px 0;
-    `;
-
-    const registerCode = modal.querySelector('#register-command-code');
-    registerCode.style.cssText = `
-      display: block;
-      background: var(--bg-tertiary);
-      padding: 8px 12px;
-      border-radius: 6px;
-      margin: 8px 0;
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 12px;
-      color: var(--color-purple);
-      cursor: pointer;
-      border: 1px solid var(--border-color);
-    `;
-    registerCode.title = "Cliquer pour copier";
-    registerCode.onclick = () => {
-      navigator.clipboard.writeText(registerCommand);
-      const original = registerCode.textContent;
-      registerCode.textContent = '✓ Copié !';
-      setTimeout(() => { registerCode.textContent = original; }, 2000);
-    };
-
-    // Fermer avec Escape ou clic en dehors
-    modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
-    document.addEventListener('keydown', function handler(e) {
-      if (e.key === 'Escape') {
-        modal.remove();
-        document.removeEventListener('keydown', handler);
-      }
-    });
-  }
-
-  // ========== Utilitaires ==========
-  function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
   }
 
   // ========== Notifications ==========
-  function showNotification(message, type = 'info') {
-    const oldNotif = document.querySelector('.notification');
-    if (oldNotif) oldNotif.remove();
+  function showNotification(message, type) {
+    var old = document.querySelector('.rb-notification');
+    if (old) old.remove();
 
-    const notification = document.createElement('div');
-    notification.className = `notification notification-${type}`;
-    notification.innerHTML = `
-      <span class="notification-icon">${type === 'success' ? '✓' : type === 'error' ? '✗' : 'ℹ'}</span>
-      <span class="notification-message">${message}</span>
-    `;
+    var icons = { success: '\u2713', error: '\u2717', info: '\u2139' };
+    var colors = {
+      success: 'linear-gradient(135deg, #10b981, #059669)',
+      error:   'linear-gradient(135deg, #ef4444, #dc2626)',
+      info:    'linear-gradient(135deg, #3b82f6, #2563eb)'
+    };
 
-    notification.style.cssText = `
-      position: fixed;
-      bottom: 20px;
-      right: 20px;
-      padding: 12px 20px;
-      border-radius: 8px;
-      background: ${type === 'success' ? 'linear-gradient(135deg, #10b981, #059669)' :
-                   type === 'error' ? 'linear-gradient(135deg, #ef4444, #dc2626)' :
-                   'linear-gradient(135deg, #3b82f6, #2563eb)'};
-      color: white;
-      font-weight: 500;
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-      z-index: 10001;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      animation: slideInUp 0.3s ease;
-      font-family: 'JetBrains Mono', monospace;
-    `;
+    var el = document.createElement('div');
+    el.className = 'rb-notification';
+    el.innerHTML = '<span>' + (icons[type] || '') + '</span> ' + message;
+    el.style.cssText = 'position:fixed;bottom:20px;right:20px;padding:12px 20px;border-radius:8px;' +
+      'background:' + colors[type] + ';color:#fff;font-weight:500;z-index:10001;' +
+      'box-shadow:0 4px 20px rgba(0,0,0,.3);animation:slideInUp .3s ease;' +
+      'font-family:"JetBrains Mono",monospace;font-size:14px;';
 
-    document.body.appendChild(notification);
-
-    setTimeout(() => {
-      notification.style.animation = 'slideInUp 0.3s ease reverse';
-      setTimeout(() => notification.remove(), 300);
-    }, 4000);
+    document.body.appendChild(el);
+    setTimeout(function() { el.remove(); }, 4000);
   }
 
-  // ========== Animation des éléments ==========
+  // ========== Animations ==========
   function animateElements() {
-    document.querySelectorAll('.cadre').forEach((el, i) => {
+    document.querySelectorAll('.cadre').forEach(function(el, i) {
       el.style.opacity = '0';
       el.style.animation = 'fadeInUp 0.5s ease forwards';
-      el.style.animationDelay = `${i * 0.1}s`;
+      el.style.animationDelay = i * 0.1 + 's';
     });
-
-    document.querySelectorAll('tbody tr').forEach((el, i) => {
+    document.querySelectorAll('tbody tr').forEach(function(el, i) {
       el.style.opacity = '0';
       el.style.animation = 'fadeInUp 0.3s ease forwards';
-      el.style.animationDelay = `${i * 0.05}s`;
+      el.style.animationDelay = i * 0.05 + 's';
     });
   }
 
   // ========== Images ==========
   function enhanceImages() {
-    document.querySelectorAll('img').forEach(img => {
+    document.querySelectorAll('img').forEach(function(img) {
       if (!img.complete) {
         img.style.opacity = '0';
         img.addEventListener('load', function() {
@@ -515,143 +158,62 @@
           this.style.opacity = '1';
         });
       }
-
       img.addEventListener('error', function() {
         this.style.opacity = '0.4';
         this.style.border = '2px dashed var(--border-color)';
         this.title = 'Image non disponible';
-        this.style.cursor = 'not-allowed';
       });
-
-      img.addEventListener('click', function(e) {
-        if (!this.title || this.title !== 'Image non disponible') {
-          openModal(this.src, this.alt);
-        }
+      img.addEventListener('click', function() {
+        if (this.title !== 'Image non disponible') openModal(this.src, this.alt);
       });
     });
   }
 
   // ========== Modal Image ==========
   function openModal(src, alt) {
-    const modal = document.createElement('div');
-    modal.style.cssText = `
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0, 0, 0, 0.95);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 10000;
-      cursor: pointer;
-      padding: 20px;
-      animation: fadeIn 0.3s ease;
-    `;
+    var modal = document.createElement('div');
+    modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.95);' +
+      'display:flex;align-items:center;justify-content:center;z-index:10000;cursor:pointer;padding:20px;';
 
-    const img = document.createElement('img');
+    var img = document.createElement('img');
     img.src = src;
-    img.alt = alt;
-    img.style.cssText = `
-      max-width: 90%;
-      max-height: 90%;
-      object-fit: contain;
-      border-radius: 12px;
-      box-shadow: 0 0 40px rgba(255, 255, 255, 0.1);
-      animation: fadeInUp 0.4s ease;
-    `;
+    img.alt = alt || '';
+    img.style.cssText = 'max-width:90%;max-height:90%;object-fit:contain;border-radius:12px;box-shadow:0 0 40px rgba(255,255,255,.1);';
 
-    const closeBtn = document.createElement('button');
-    closeBtn.innerHTML = '✕';
-    closeBtn.style.cssText = `
-      position: absolute;
-      top: 20px;
-      right: 20px;
-      background: linear-gradient(135deg, #667eea, #764ba2);
-      color: white;
-      border: none;
-      font-size: 24px;
-      padding: 12px 16px;
-      cursor: pointer;
-      border-radius: 8px;
-      transition: all 0.2s ease;
-    `;
+    var closeBtn = document.createElement('button');
+    closeBtn.innerHTML = '\u2715';
+    closeBtn.style.cssText = 'position:absolute;top:20px;right:20px;background:linear-gradient(135deg,#667eea,#764ba2);' +
+      'color:#fff;border:none;font-size:24px;padding:12px 16px;cursor:pointer;border-radius:8px;';
 
-    closeBtn.onmouseover = () => closeBtn.style.transform = 'scale(1.1)';
-    closeBtn.onmouseout = () => closeBtn.style.transform = 'scale(1)';
-
-    function close() {
-      modal.style.animation = 'fadeIn 0.2s ease reverse';
-      setTimeout(() => {
-        if (document.body.contains(modal)) document.body.removeChild(modal);
-      }, 200);
-    }
+    function close() { if (document.body.contains(modal)) document.body.removeChild(modal); }
 
     modal.appendChild(img);
     modal.appendChild(closeBtn);
     document.body.appendChild(modal);
 
-    modal.onclick = (e) => { if (e.target === modal) close(); };
+    modal.onclick = function(e) { if (e.target === modal) close(); };
     closeBtn.onclick = close;
-
     document.addEventListener('keydown', function handler(e) {
-      if (e.key === 'Escape') {
-        close();
-        document.removeEventListener('keydown', handler);
-      }
+      if (e.key === 'Escape') { close(); document.removeEventListener('keydown', handler); }
     });
   }
 
   // ========== Raccourcis clavier ==========
   document.addEventListener('keydown', function(e) {
-    if (e.altKey && (e.key === 't' || e.key === 'T')) {
-      e.preventDefault();
-      toggleTheme();
-    }
-
-    if (e.altKey && e.key === 'ArrowLeft') {
-      e.preventDefault();
-      history.back();
-    }
-
-    if (e.altKey && (e.key === 'r' || e.key === 'R')) {
-      e.preventDefault();
-      refreshPage();
-    }
+    if (e.altKey && (e.key === 't' || e.key === 'T')) { e.preventDefault(); toggleTheme(); }
+    if (e.altKey && e.key === 'ArrowLeft') { e.preventDefault(); history.back(); }
+    if (e.altKey && (e.key === 'r' || e.key === 'R')) { e.preventDefault(); refreshPage(); }
   });
 
-  // ========== Styles CSS additionnels ==========
-  const style = document.createElement('style');
-  style.textContent = `
-    @keyframes spin {
-      from { transform: rotate(0deg); }
-      to { transform: rotate(360deg); }
-    }
-
-    @keyframes slideInUp {
-      from { transform: translateY(20px); opacity: 0; }
-      to { transform: translateY(0); opacity: 1; }
-    }
-
-    @keyframes fadeIn {
-      from { opacity: 0; }
-      to { opacity: 1; }
-    }
-
-    .refresh-button.loading {
-      opacity: 0.7;
-      cursor: wait;
-    }
-
-    .refresh-button svg {
-      transition: transform 0.3s ease;
-    }
-
-    .refresh-button:hover:not(.loading) svg {
-      transform: rotate(45deg);
-    }
-  `;
+  // ========== CSS animations ==========
+  var style = document.createElement('style');
+  style.textContent =
+    '@keyframes spin { from{transform:rotate(0)} to{transform:rotate(360deg)} }' +
+    '@keyframes slideInUp { from{transform:translateY(20px);opacity:0} to{transform:translateY(0);opacity:1} }' +
+    '@keyframes fadeIn { from{opacity:0} to{opacity:1} }' +
+    '.refresh-button.loading{opacity:.7;cursor:wait}' +
+    '.refresh-button svg{transition:transform .3s ease}' +
+    '.refresh-button:hover:not(.loading) svg{transform:rotate(45deg)}';
   document.head.appendChild(style);
 
 })();
