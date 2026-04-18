@@ -794,6 +794,80 @@ def run_link_fixer(output_dir: str):
         print(f"[WARN] L'adaptation des liens a échoué : {e}")
 
 
+def generate_navigation_tree(output_dir: str):
+    """Génère navigation.json pour le sidebar de navigation."""
+    try:
+        print("\n" + "="*60)
+        print("[NAVIGATION] Génération de l'arbre de navigation...")
+        print("="*60)
+
+        from pathlib import Path
+
+        pedago_dir = Path(output_dir)
+        if not pedago_dir.exists():
+            logger.warning(f"Dossier {pedago_dir} introuvable")
+            return
+
+        def build_tree(directory: Path, base_path: Path) -> dict:
+            """Construit récursivement l'arbre de navigation."""
+            relative = directory.relative_to(base_path)
+            rel_str = str(relative).replace('\\', '/')
+            if rel_str == '.':
+                rel_str = ''
+
+            node = {
+                "name": directory.name if directory != base_path else "pedago",
+                "path": "/" + rel_str if rel_str else "/",
+                "type": "folder",
+                "children": []
+            }
+
+            # Lister les éléments
+            try:
+                items = sorted(directory.iterdir(), key=lambda x: (not x.is_dir(), x.name.lower()))
+            except PermissionError:
+                return node
+
+            for item in items:
+                # Ignorer les fichiers cachés et fichiers de config
+                if item.name.startswith('.') or item.name in ['navigation.json', 'link.data', 'url_mapping.json']:
+                    continue
+
+                if item.is_dir():
+                    # Récursion dans les sous-dossiers
+                    child_node = build_tree(item, base_path)
+                    node["children"].append(child_node)
+
+                elif item.is_file() and item.suffix.lower() in ['.html', '.htm']:
+                    # Ajouter uniquement les fichiers HTML
+                    item_rel = item.relative_to(base_path)
+                    item_path = "/" + str(item_rel).replace('\\', '/')
+
+                    file_node = {
+                        "name": item.name,
+                        "path": item_path,
+                        "type": "file"
+                    }
+                    node["children"].append(file_node)
+
+            return node
+
+        # Construire l'arbre
+        tree = build_tree(pedago_dir, pedago_dir)
+
+        # Sauvegarder navigation.json
+        nav_file = pedago_dir / "navigation.json"
+        with open(nav_file, 'w', encoding='utf-8') as f:
+            json.dump(tree, f, indent=2, ensure_ascii=False)
+
+        print(f"✓ Arbre de navigation généré: {nav_file}")
+        logger.info(f"Navigation tree saved to {nav_file}")
+
+    except Exception as e:
+        logger.error(f"Erreur lors de la génération de l'arbre de navigation: {e}")
+        print(f"[WARN] La génération de navigation.json a échoué : {e}")
+
+
 def main():
     # Vérifier les arguments
     if len(sys.argv) < 4:
@@ -829,6 +903,9 @@ def main():
 
         # 3. Adaptation des liens
         run_link_fixer(output_dir)
+
+        # 4. Génération de l'arbre de navigation
+        generate_navigation_tree(output_dir)
 
         print("\n" + "="*60)
         print("[SUCCESS] ✓ Pipeline complet terminé avec succès !")

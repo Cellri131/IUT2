@@ -1,10 +1,13 @@
-// rb.js - Gestion du thème, toolbar, refresh API et améliorations UX
+// rb.js - Gestion du thème, toolbar, refresh API, sidebar navigation et améliorations UX
 (function() {
   'use strict';
+
+  var navigationData = null; // Stockage de l'arbre de navigation
 
   document.addEventListener('DOMContentLoaded', function() {
     initTheme();
     setupToolbar();
+    loadNavigationTree();
     enhanceImages();
     animateElements();
   });
@@ -47,6 +50,13 @@
     var toolbar = document.createElement('div');
     toolbar.className = 'toolbar';
 
+    // Bouton hamburger (navigation)
+    var menuBtn = document.createElement('button');
+    menuBtn.className = 'btn menu-button';
+    menuBtn.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18M3 6h18M3 18h18"/></svg>';
+    menuBtn.title = 'Navigation (Alt+N)';
+    menuBtn.onclick = toggleSidebar;
+
     // Bouton retour
     var backBtn = document.createElement('button');
     backBtn.className = 'btn back-button';
@@ -66,6 +76,7 @@
     refreshBtn.title = 'Rafraîchir depuis le serveur (Alt+R)';
     refreshBtn.onclick = refreshPage;
 
+    toolbar.appendChild(menuBtn);
     toolbar.appendChild(backBtn);
     toolbar.appendChild(themeBtn);
     toolbar.appendChild(refreshBtn);
@@ -73,6 +84,238 @@
 
     // Appliquer le thème au bouton
     setTheme(localStorage.getItem('theme') || 'light');
+  }
+
+  // ========== Navigation Sidebar ==========
+  function loadNavigationTree() {
+    // Déterminer le chemin vers navigation.json
+    var basePath = getBasePath();
+    var navPath = basePath + 'navigation.json';
+
+    fetch(navPath)
+      .then(function(resp) {
+        if (!resp.ok) throw new Error('Navigation file not found');
+        return resp.json();
+      })
+      .then(function(data) {
+        navigationData = data;
+        setupSidebar();
+      })
+      .catch(function(err) {
+        console.warn('Navigation tree not loaded:', err);
+      });
+  }
+
+  function getBasePath() {
+    // Calculer le chemin relatif vers la racine pedago
+    var path = window.location.pathname;
+    var depth = (path.match(/\//g) || []).length - 1;
+    if (path.endsWith('/')) depth--;
+    return depth > 0 ? '../'.repeat(depth) : './';
+  }
+
+  function setupSidebar() {
+    if (!navigationData) return;
+    if (document.querySelector('.nav-sidebar')) return;
+
+    // Créer le sidebar
+    var sidebar = document.createElement('div');
+    sidebar.className = 'nav-sidebar';
+
+    // Header avec breadcrumb
+    var header = document.createElement('div');
+    header.className = 'nav-header';
+    header.innerHTML = '<h3>Navigation</h3>';
+
+    var breadcrumb = buildBreadcrumb();
+    if (breadcrumb) {
+      var breadcrumbEl = document.createElement('div');
+      breadcrumbEl.className = 'nav-breadcrumb';
+      breadcrumbEl.innerHTML = breadcrumb;
+      header.appendChild(breadcrumbEl);
+    }
+
+    // Contenu (arbre)
+    var content = document.createElement('div');
+    content.className = 'nav-content';
+    content.appendChild(buildTree(navigationData));
+
+    // Bouton fermer
+    var closeBtn = document.createElement('button');
+    closeBtn.className = 'nav-close';
+    closeBtn.innerHTML = '×';
+    closeBtn.onclick = toggleSidebar;
+
+    sidebar.appendChild(closeBtn);
+    sidebar.appendChild(header);
+    sidebar.appendChild(content);
+
+    // Overlay
+    var overlay = document.createElement('div');
+    overlay.className = 'nav-overlay';
+    overlay.onclick = toggleSidebar;
+
+    document.body.appendChild(sidebar);
+    document.body.appendChild(overlay);
+
+    // Highlight de la page active
+    highlightActivePage();
+  }
+
+  function buildBreadcrumb() {
+    var path = window.location.pathname;
+    var parts = path.split('/').filter(Boolean);
+
+    if (parts.length === 0) return '';
+
+    var breadcrumb = '<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" style="vertical-align:middle;margin-right:4px"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>';
+    var currentPath = '';
+
+    parts.forEach(function(part, i) {
+      currentPath += '/' + part;
+      var displayName = part.replace(/\.[^.]+$/, ''); // Enlever l'extension
+      if (i > 0) breadcrumb += ' › ';
+      breadcrumb += '<span>' + displayName + '</span>';
+    });
+
+    return breadcrumb;
+  }
+
+  function buildTree(node, level) {
+    level = level || 0;
+    var ul = document.createElement('ul');
+    ul.className = 'nav-tree-level';
+    if (level === 0) ul.classList.add('nav-tree-root');
+
+    // Sauvegarder l'état expand/collapse dans localStorage
+    var expandedKey = 'nav-expanded-' + node.path;
+    var isExpanded = localStorage.getItem(expandedKey) !== 'false';
+
+    if (node.children && node.children.length > 0) {
+      node.children.forEach(function(child) {
+        var li = document.createElement('li');
+        li.className = 'nav-tree-item';
+        li.dataset.path = child.path;
+
+        if (child.type === 'folder') {
+          var folderDiv = document.createElement('div');
+          folderDiv.className = 'nav-folder';
+
+          // Icône expand/collapse
+          var toggle = document.createElement('span');
+          toggle.className = 'nav-toggle';
+          toggle.innerHTML = isExpanded ? '▼' : '▶';
+          toggle.onclick = function(e) {
+            e.stopPropagation();
+            toggleFolder(li, child.path);
+          };
+
+          // Icône dossier
+          var icon = document.createElement('span');
+          icon.className = 'nav-icon';
+          icon.innerHTML = '📁';
+
+          // Nom
+          var name = document.createElement('span');
+          name.textContent = child.name;
+          name.onclick = function() {
+            // Si le dossier a un index.html, naviguer vers lui
+            var indexPath = child.path + (child.path.endsWith('/') ? '' : '/') + 'index.html';
+            window.location.href = indexPath;
+          };
+
+          folderDiv.appendChild(toggle);
+          folderDiv.appendChild(icon);
+          folderDiv.appendChild(name);
+          li.appendChild(folderDiv);
+
+          // Sous-arbre
+          var subtree = buildTree(child, level + 1);
+          subtree.style.display = isExpanded ? 'block' : 'none';
+          li.appendChild(subtree);
+
+          if (isExpanded) li.classList.add('expanded');
+
+        } else if (child.type === 'file') {
+          var fileDiv = document.createElement('div');
+          fileDiv.className = 'nav-file';
+
+          // Icône fichier
+          var icon = document.createElement('span');
+          icon.className = 'nav-icon';
+          icon.innerHTML = '📄';
+
+          // Nom (lien)
+          var link = document.createElement('a');
+          link.href = child.path;
+          link.textContent = child.name;
+
+          fileDiv.appendChild(icon);
+          fileDiv.appendChild(link);
+          li.appendChild(fileDiv);
+        }
+
+        ul.appendChild(li);
+      });
+    }
+
+    return ul;
+  }
+
+  function toggleFolder(li, path) {
+    var isExpanded = li.classList.contains('expanded');
+    var toggle = li.querySelector('.nav-toggle');
+    var subtree = li.querySelector('.nav-tree-level');
+
+    if (isExpanded) {
+      li.classList.remove('expanded');
+      toggle.innerHTML = '▶';
+      if (subtree) subtree.style.display = 'none';
+      localStorage.setItem('nav-expanded-' + path, 'false');
+    } else {
+      li.classList.add('expanded');
+      toggle.innerHTML = '▼';
+      if (subtree) subtree.style.display = 'block';
+      localStorage.setItem('nav-expanded-' + path, 'true');
+    }
+  }
+
+  function toggleSidebar() {
+    var sidebar = document.querySelector('.nav-sidebar');
+    var overlay = document.querySelector('.nav-overlay');
+    if (!sidebar || !overlay) return;
+
+    var isOpen = sidebar.classList.contains('open');
+    if (isOpen) {
+      sidebar.classList.remove('open');
+      overlay.classList.remove('open');
+    } else {
+      sidebar.classList.add('open');
+      overlay.classList.add('open');
+    }
+  }
+
+  function highlightActivePage() {
+    var currentPath = window.location.pathname;
+    var items = document.querySelectorAll('.nav-tree-item');
+
+    items.forEach(function(item) {
+      if (item.dataset.path === currentPath) {
+        item.classList.add('active');
+        // Expand tous les parents
+        var parent = item.parentElement;
+        while (parent && parent.classList.contains('nav-tree-level')) {
+          parent.style.display = 'block';
+          var parentLi = parent.parentElement;
+          if (parentLi && parentLi.classList.contains('nav-tree-item')) {
+            parentLi.classList.add('expanded');
+            var toggle = parentLi.querySelector('.nav-toggle');
+            if (toggle) toggle.innerHTML = '▼';
+          }
+          parent = parentLi ? parentLi.parentElement : null;
+        }
+      }
+    });
   }
 
   // ========== Rafraîchissement via API serveur ==========
@@ -203,6 +446,7 @@
     if (e.altKey && (e.key === 't' || e.key === 'T')) { e.preventDefault(); toggleTheme(); }
     if (e.altKey && e.key === 'ArrowLeft') { e.preventDefault(); history.back(); }
     if (e.altKey && (e.key === 'r' || e.key === 'R')) { e.preventDefault(); refreshPage(); }
+    if (e.altKey && (e.key === 'n' || e.key === 'N')) { e.preventDefault(); toggleSidebar(); }
   });
 
   // ========== CSS animations ==========
@@ -211,6 +455,7 @@
     '@keyframes spin { from{transform:rotate(0)} to{transform:rotate(360deg)} }' +
     '@keyframes slideInUp { from{transform:translateY(20px);opacity:0} to{transform:translateY(0);opacity:1} }' +
     '@keyframes fadeIn { from{opacity:0} to{opacity:1} }' +
+    '@keyframes fadeInUp { from{transform:translateY(10px);opacity:0} to{transform:translateY(0);opacity:1} }' +
     '.refresh-button.loading{opacity:.7;cursor:wait}' +
     '.refresh-button svg{transition:transform .3s ease}' +
     '.refresh-button:hover:not(.loading) svg{transform:rotate(45deg)}';
