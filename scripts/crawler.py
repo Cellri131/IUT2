@@ -803,7 +803,8 @@ def generate_navigation_tree(output_dir: str):
 
         from pathlib import Path
 
-        pedago_dir = Path(output_dir)
+        # Scanner uniquement le dossier pedago
+        pedago_dir = Path(output_dir) / "pedago"
         if not pedago_dir.exists():
             logger.warning(f"Dossier {pedago_dir} introuvable")
             return
@@ -830,7 +831,7 @@ def generate_navigation_tree(output_dir: str):
 
             for item in items:
                 # Ignorer les fichiers cachés et fichiers de config
-                if item.name.startswith('.') or item.name in ['navigation.json', 'link.data', 'url_mapping.json']:
+                if item.name.startswith('.') or item.name in ['navigation.js', 'navigation.json', 'link.data', 'url_mapping.json', 'css']:
                     continue
 
                 if item.is_dir():
@@ -855,12 +856,15 @@ def generate_navigation_tree(output_dir: str):
         # Construire l'arbre
         tree = build_tree(pedago_dir, pedago_dir)
 
-        # Sauvegarder navigation.json
-        nav_file = pedago_dir / "navigation.json"
+        # Sauvegarder navigation.js (au lieu de JSON pour éviter CORS en local)
+        nav_file = pedago_dir / "css" / "navigation.js"
         with open(nav_file, 'w', encoding='utf-8') as f:
+            f.write('// Arbre de navigation généré automatiquement\n')
+            f.write('window.NAVIGATION_TREE = ')
             json.dump(tree, f, indent=2, ensure_ascii=False)
+            f.write(';\n')
 
-        print(f"✓ Arbre de navigation généré: {nav_file}")
+        print(f"[OK] Arbre de navigation genere: {nav_file}")
         logger.info(f"Navigation tree saved to {nav_file}")
 
     except Exception as e:

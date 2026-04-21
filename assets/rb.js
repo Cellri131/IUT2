@@ -88,29 +88,42 @@
 
   // ========== Navigation Sidebar ==========
   function loadNavigationTree() {
-    // Déterminer le chemin vers navigation.json
-    var basePath = getBasePath();
-    var navPath = basePath + 'navigation.json';
-
-    fetch(navPath)
-      .then(function(resp) {
-        if (!resp.ok) throw new Error('Navigation file not found');
-        return resp.json();
-      })
-      .then(function(data) {
-        navigationData = data;
-        setupSidebar();
-      })
-      .catch(function(err) {
-        console.warn('Navigation tree not loaded:', err);
-      });
+    // Le fichier navigation.js définit window.NAVIGATION_TREE
+    // Il est chargé via <script> dans le HTML (pas de CORS)
+    if (window.NAVIGATION_TREE) {
+      navigationData = window.NAVIGATION_TREE;
+      setupSidebar();
+    } else {
+      console.warn('Navigation tree not loaded (window.NAVIGATION_TREE not found)');
+    }
   }
 
   function getBasePath() {
     // Calculer le chemin relatif vers la racine pedago
     var path = window.location.pathname;
-    var depth = (path.match(/\//g) || []).length - 1;
-    if (path.endsWith('/')) depth--;
+
+    // Pour les fichiers locaux (file://), extraire seulement la partie après /pedago/
+    if (window.location.protocol === 'file:') {
+      var pedagogIndex = path.indexOf('/pedago/');
+      if (pedagogIndex !== -1) {
+        path = path.substring(pedagogIndex + 7); // +7 pour sauter '/pedago'
+      } else {
+        // Fallback: chercher juste 'pedago/'
+        pedagogIndex = path.indexOf('pedago/');
+        if (pedagogIndex !== -1) {
+          path = path.substring(pedagogIndex + 6); // +6 pour sauter 'pedago'
+        }
+      }
+    }
+
+    // Compter les niveaux de profondeur
+    var parts = path.split('/').filter(Boolean);
+    // Retirer le nom du fichier
+    if (parts.length > 0 && parts[parts.length - 1].indexOf('.') !== -1) {
+      parts.pop();
+    }
+
+    var depth = parts.length;
     return depth > 0 ? '../'.repeat(depth) : './';
   }
 
@@ -135,9 +148,24 @@
       header.appendChild(breadcrumbEl);
     }
 
+    // Champ de recherche
+    var searchDiv = document.createElement('div');
+    searchDiv.className = 'nav-search';
+    var searchInput = document.createElement('input');
+    searchInput.type = 'text';
+    searchInput.placeholder = 'Rechercher...';
+    searchInput.id = 'nav-search-input';
+    var searchIcon = document.createElement('span');
+    searchIcon.className = 'nav-search-icon';
+    searchIcon.innerHTML = '🔍';
+    searchDiv.appendChild(searchInput);
+    searchDiv.appendChild(searchIcon);
+    header.appendChild(searchDiv);
+
     // Contenu (arbre)
     var content = document.createElement('div');
     content.className = 'nav-content';
+    content.id = 'nav-tree-content';
     content.appendChild(buildTree(navigationData));
 
     // Bouton fermer
@@ -158,12 +186,59 @@
     document.body.appendChild(sidebar);
     document.body.appendChild(overlay);
 
+    // Calculer et ajuster la largeur dynamique
+    adjustSidebarWidth(sidebar, navigationData);
+
     // Highlight de la page active
     highlightActivePage();
+
+    // Gestion de la recherche
+    searchInput.addEventListener('input', function(e) {
+      filterTree(e.target.value);
+    });
+  }
+
+  function adjustSidebarWidth(sidebar, tree) {
+    // Calculer la longueur maximale des noms de dossiers
+    var maxLength = 0;
+
+    function getMaxLength(node, depth) {
+      depth = depth || 0;
+      if (node.name && node.type === 'folder') {
+        // Compter la longueur du nom + indentation
+        var length = node.name.length + (depth * 2);
+        maxLength = Math.max(maxLength, length);
+      }
+      if (node.children) {
+        node.children.forEach(function(child) {
+          getMaxLength(child, depth + 1);
+        });
+      }
+    }
+
+    getMaxLength(tree, 0);
+
+    // Largeur de base : 350px
+    // Ajouter ~8px par caractère au-delà de 30 caractères
+    var baseWidth = 350;
+    var extraWidth = Math.max(0, (maxLength - 30) * 8);
+    var totalWidth = Math.min(baseWidth + extraWidth, 600); // Max 600px
+
+    sidebar.style.width = totalWidth + 'px';
+    sidebar.style.left = '-' + totalWidth + 'px';
   }
 
   function buildBreadcrumb() {
     var path = window.location.pathname;
+
+    // Pour les fichiers locaux (file://), extraire seulement la partie après /pedago/
+    if (window.location.protocol === 'file:') {
+      var pedagogIndex = path.indexOf('/pedago/');
+      if (pedagogIndex !== -1) {
+        path = path.substring(pedagogIndex + 7); // +7 pour sauter '/pedago'
+      }
+    }
+
     var parts = path.split('/').filter(Boolean);
 
     if (parts.length === 0) return '';
@@ -187,72 +262,65 @@
     ul.className = 'nav-tree-level';
     if (level === 0) ul.classList.add('nav-tree-root');
 
+    // Calculer le chemin de base pour les liens relatifs
+    var basePath = getBasePath();
+
     // Sauvegarder l'état expand/collapse dans localStorage
     var expandedKey = 'nav-expanded-' + node.path;
     var isExpanded = localStorage.getItem(expandedKey) !== 'false';
 
     if (node.children && node.children.length > 0) {
       node.children.forEach(function(child) {
+        // Ne montrer que les dossiers (pas les fichiers individuels)
+        if (child.type !== 'folder') return;
+
         var li = document.createElement('li');
         li.className = 'nav-tree-item';
         li.dataset.path = child.path;
 
-        if (child.type === 'folder') {
-          var folderDiv = document.createElement('div');
-          folderDiv.className = 'nav-folder';
+        var folderDiv = document.createElement('div');
+        folderDiv.className = 'nav-folder';
 
-          // Icône expand/collapse
-          var toggle = document.createElement('span');
-          toggle.className = 'nav-toggle';
+        // Icône expand/collapse (seulement si le dossier a des enfants)
+        var toggle = document.createElement('span');
+        toggle.className = 'nav-toggle';
+        if (child.children && child.children.length > 0) {
           toggle.innerHTML = isExpanded ? '▼' : '▶';
           toggle.onclick = function(e) {
             e.stopPropagation();
             toggleFolder(li, child.path);
           };
+        } else {
+          toggle.innerHTML = ''; // Pas de toggle si pas d'enfants
+          toggle.style.width = '16px'; // Garder l'espace
+        }
 
-          // Icône dossier
-          var icon = document.createElement('span');
-          icon.className = 'nav-icon';
-          icon.innerHTML = '📁';
+        // Icône dossier
+        var icon = document.createElement('span');
+        icon.className = 'nav-icon';
+        icon.innerHTML = '📁';
 
-          // Nom
-          var name = document.createElement('span');
-          name.textContent = child.name;
-          name.onclick = function() {
-            // Si le dossier a un index.html, naviguer vers lui
-            var indexPath = child.path + (child.path.endsWith('/') ? '' : '/') + 'index.html';
-            window.location.href = indexPath;
-          };
+        // Nom (cliquable pour aller à index.html)
+        var name = document.createElement('span');
+        name.textContent = child.name;
+        name.style.cursor = 'pointer';
+        name.onclick = function() {
+          var indexPath = child.path + (child.path.endsWith('/') ? '' : '/') + 'index.html';
+          var relativePath = basePath + indexPath.substring(1);
+          window.location.href = relativePath;
+        };
 
-          folderDiv.appendChild(toggle);
-          folderDiv.appendChild(icon);
-          folderDiv.appendChild(name);
-          li.appendChild(folderDiv);
+        folderDiv.appendChild(toggle);
+        folderDiv.appendChild(icon);
+        folderDiv.appendChild(name);
+        li.appendChild(folderDiv);
 
-          // Sous-arbre
+        // Sous-arbre (si le dossier a des enfants)
+        if (child.children && child.children.length > 0) {
           var subtree = buildTree(child, level + 1);
           subtree.style.display = isExpanded ? 'block' : 'none';
           li.appendChild(subtree);
-
           if (isExpanded) li.classList.add('expanded');
-
-        } else if (child.type === 'file') {
-          var fileDiv = document.createElement('div');
-          fileDiv.className = 'nav-file';
-
-          // Icône fichier
-          var icon = document.createElement('span');
-          icon.className = 'nav-icon';
-          icon.innerHTML = '📄';
-
-          // Nom (lien)
-          var link = document.createElement('a');
-          link.href = child.path;
-          link.textContent = child.name;
-
-          fileDiv.appendChild(icon);
-          fileDiv.appendChild(link);
-          li.appendChild(fileDiv);
         }
 
         ul.appendChild(li);
@@ -297,6 +365,15 @@
 
   function highlightActivePage() {
     var currentPath = window.location.pathname;
+
+    // Pour les fichiers locaux (file://), extraire seulement la partie après /pedago/
+    if (window.location.protocol === 'file:') {
+      var pedagogIndex = currentPath.indexOf('/pedago/');
+      if (pedagogIndex !== -1) {
+        currentPath = '/' + currentPath.substring(pedagogIndex + 8); // +8 pour avoir /xxx après /pedago/
+      }
+    }
+
     var items = document.querySelectorAll('.nav-tree-item');
 
     items.forEach(function(item) {
@@ -314,6 +391,55 @@
           }
           parent = parentLi ? parentLi.parentElement : null;
         }
+      }
+    });
+  }
+
+  function filterTree(searchText) {
+    searchText = searchText.toLowerCase().trim();
+    var items = document.querySelectorAll('.nav-tree-item');
+
+    if (!searchText) {
+      // Réafficher tout
+      items.forEach(function(item) {
+        item.style.display = '';
+        var subtree = item.querySelector('.nav-tree-level');
+        if (subtree) {
+          var isExpanded = item.classList.contains('expanded');
+          subtree.style.display = isExpanded ? 'block' : 'none';
+        }
+      });
+      return;
+    }
+
+    // Filtrer
+    items.forEach(function(item) {
+      var name = item.textContent.toLowerCase();
+      var matches = name.indexOf(searchText) !== -1;
+
+      if (matches) {
+        // Afficher l'item
+        item.style.display = '';
+        // Expand et afficher tous les parents
+        var parent = item.parentElement;
+        while (parent) {
+          if (parent.classList.contains('nav-tree-level')) {
+            parent.style.display = 'block';
+            var parentLi = parent.parentElement;
+            if (parentLi && parentLi.classList.contains('nav-tree-item')) {
+              parentLi.style.display = '';
+              parentLi.classList.add('expanded');
+              var toggle = parentLi.querySelector('.nav-toggle');
+              if (toggle) toggle.innerHTML = '▼';
+            }
+            parent = parentLi ? parentLi.parentElement : null;
+          } else {
+            break;
+          }
+        }
+      } else {
+        // Cacher l'item (sauf s'il a des enfants visibles)
+        item.style.display = 'none';
       }
     });
   }

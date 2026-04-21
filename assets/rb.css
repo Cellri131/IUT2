@@ -649,7 +649,7 @@ button:focus {
   position: fixed;
   top: 0;
   left: -350px;
-  width: 350px;
+  width: 350px; /* Largeur par défaut, sera ajustée en JS */
   height: 100vh;
   background: var(--bg-primary);
   border-right: 2px solid var(--border-color);
@@ -699,6 +699,42 @@ button:focus {
   color: var(--text-primary);
 }
 
+.nav-search {
+  margin-top: 12px;
+  position: relative;
+}
+
+.nav-search input {
+  width: 100%;
+  padding: 10px 36px 10px 12px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-family: 'Inter', sans-serif;
+  transition: all 0.2s ease;
+}
+
+.nav-search input:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  background: var(--bg-primary);
+}
+
+.nav-search input::placeholder {
+  color: var(--text-secondary);
+}
+
+.nav-search-icon {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-secondary);
+  pointer-events: none;
+}
+
 .nav-close {
   position: absolute;
   top: 16px;
@@ -727,13 +763,14 @@ button:focus {
 .nav-content {
   flex: 1;
   overflow-y: auto;
-  overflow-x: hidden;
+  overflow-x: auto;
   padding: 20px;
 }
 
 /* Scrollbar personnalisée */
 .nav-content::-webkit-scrollbar {
   width: 8px;
+  height: 8px;
 }
 
 .nav-content::-webkit-scrollbar-track {
@@ -764,6 +801,15 @@ button:focus {
 .nav-tree-item {
   margin: 2px 0;
   user-select: none;
+}
+
+/* Retirer les flèches oranges des listes dans le sidebar */
+.nav-tree-item::before {
+  display: none !important;
+}
+
+.nav-tree-item > * {
+  padding-left: 0 !important;
 }
 
 .nav-tree-item.active > .nav-file {

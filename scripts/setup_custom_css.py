@@ -100,6 +100,67 @@ class CSSSetup:
             shutil.copy2(source, dest)
             logger.info(f"  ✓ Fichier {filename} copié")
 
+        # Générer navigation.js
+        self._generate_navigation_js()
+
+    def _generate_navigation_js(self):
+        """Génère le fichier navigation.js avec l'arbre de navigation."""
+        import json
+
+        logger.info("Generation de navigation.js...")
+
+        pedago_dir = self.input_dir / "pedago"
+        if not pedago_dir.exists():
+            logger.warning(f"Dossier {pedago_dir} introuvable, navigation.js non genere")
+            return
+
+        def has_index_html(directory: Path) -> bool:
+            """Vérifie si un dossier contient un index.html ou index.htm"""
+            return (directory / "index.html").exists() or (directory / "index.htm").exists()
+
+        def build_tree(directory: Path, base_path: Path) -> dict:
+            """Construit récursivement l'arbre de navigation (uniquement dossiers avec index)."""
+            relative = directory.relative_to(base_path)
+            rel_str = str(relative).replace('\\', '/')
+            if rel_str == '.':
+                rel_str = ''
+
+            node = {
+                "name": directory.name if directory != base_path else "pedago",
+                "path": "/" + rel_str if rel_str else "/",
+                "type": "folder",
+                "children": []
+            }
+
+            try:
+                items = sorted(directory.iterdir(), key=lambda x: (not x.is_dir(), x.name.lower()))
+            except PermissionError:
+                return node
+
+            for item in items:
+                if item.name.startswith('.') or item.name in ['navigation.js', 'navigation.json', 'link.data', 'url_mapping.json', 'css']:
+                    continue
+
+                # Ne garder que les dossiers qui ont un index.html
+                if item.is_dir():
+                    if has_index_html(item):
+                        child_node = build_tree(item, base_path)
+                        # Ne garder le dossier que s'il a des enfants OU s'il a un index
+                        if child_node["children"] or has_index_html(item):
+                            node["children"].append(child_node)
+
+            return node
+
+        tree = build_tree(pedago_dir, pedago_dir)
+        nav_file = self.css_dir / "navigation.js"
+        with open(nav_file, 'w', encoding='utf-8') as f:
+            f.write('// Arbre de navigation genere automatiquement\n')
+            f.write('window.NAVIGATION_TREE = ')
+            json.dump(tree, f, indent=2, ensure_ascii=False)
+            f.write(';\n')
+
+        logger.info(f"  [OK] navigation.js genere ({nav_file.stat().st_size} bytes)")
+
     def _clean_all_html_files(self):
         """Nettoie tous les fichiers HTML."""
         logger.info("Nettoyage des fichiers HTML...")
@@ -168,23 +229,32 @@ class CSSSetup:
             link_tag = soup.new_tag('link', rel='stylesheet', href=css_path)
             head.append(link_tag)
 
-            # Ajouter le script JS
+            # Ajouter les scripts JS (navigation.js AVANT rb.js)
             if 'pedago' in relative_path.parts:
                 pedago_index = relative_path.parts.index('pedago')
                 depth = len(relative_path.parts) - pedago_index - 2
                 if depth > 0:
                     js_path = '../' * depth + 'css/rb.js'
+                    nav_js_path = '../' * depth + 'css/navigation.js'
                 else:
                     js_path = 'css/rb.js'
+                    nav_js_path = 'css/navigation.js'
             else:
                 js_path = 'pedago/css/rb.js'
+                nav_js_path = 'pedago/css/navigation.js'
 
-            # Vérifier si le script existe déjà
-            existing_script = head.find('script', {'src': lambda x: x and 'rb.js' in x})
-            if not existing_script:
-                script_tag = soup.new_tag('script', src=js_path)
-                script_tag['defer'] = ''
-                head.append(script_tag)
+            # Supprimer les anciens scripts s'ils existent
+            for old_script in head.find_all('script', {'src': lambda x: x and ('navigation.js' in x or 'rb.js' in x)}):
+                old_script.decompose()
+
+            # Ajouter navigation.js en PREMIER (doit être avant rb.js)
+            nav_script_tag = soup.new_tag('script', src=nav_js_path)
+            head.append(nav_script_tag)
+
+            # Puis ajouter rb.js
+            script_tag = soup.new_tag('script', src=js_path)
+            script_tag['defer'] = ''
+            head.append(script_tag)
 
             # Ajouter la meta tag avec l'URL originale
             # Déduire l'URL originale depuis le chemin du fichier
