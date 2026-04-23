@@ -14,33 +14,77 @@
 
   // ========== Gestion du thème ==========
   function initTheme() {
-    var saved = localStorage.getItem('theme');
-    var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    setTheme(saved || (prefersDark ? 'dark' : 'light'));
+    // Prioriser themeLevel pour éviter de réinitialiser aux valeurs extrêmes
+    var savedLevel = localStorage.getItem('themeLevel');
+    var themeLevel = 1;
+
+    if (savedLevel) {
+      // Utiliser le niveau sauvegardé directement
+      themeLevel = parseInt(savedLevel, 10);
+    } else {
+      // Migration de l'ancien système (dark/light) vers le nouveau (niveau 1-5)
+      var saved = localStorage.getItem('theme');
+      if (saved === 'dark') {
+        themeLevel = 5;
+      } else if (saved === 'light') {
+        themeLevel = 1;
+      } else {
+        // Utiliser la préférence système
+        var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        themeLevel = prefersDark ? 5 : 1;
+      }
+    }
+
+    setTheme(themeLevel);
 
     window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function(e) {
-      if (!localStorage.getItem('theme')) setTheme(e.matches ? 'dark' : 'light');
+      if (!localStorage.getItem('themeLevel')) setTheme(e.matches ? 5 : 1);
     });
   }
 
-  function setTheme(theme) {
+  function setTheme(level) {
     var html = document.documentElement;
     var btn = document.querySelector('.theme-toggle');
-    var sun = '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>';
-    var moon = '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>';
 
-    if (theme === 'dark') {
-      html.setAttribute('data-theme', 'dark');
-      if (btn) btn.innerHTML = sun;
-    } else {
+    // Assurer que le niveau est entre 1 et 5
+    level = Math.max(1, Math.min(5, level));
+
+    // Appliquer le thème
+    if (level === 1) {
       html.removeAttribute('data-theme');
-      if (btn) btn.innerHTML = moon;
+    } else {
+      html.setAttribute('data-theme', 'level' + level);
     }
-    localStorage.setItem('theme', theme);
+
+    // Sauvegarder le niveau
+    localStorage.setItem('themeLevel', level.toString());
+    // Supprimer l'ancien 'theme' pour éviter les conflits
+    localStorage.removeItem('theme');
+
+    // Mettre à jour le bouton
+    if (btn) {
+      updateThemeButton(btn, level);
+    }
+  }
+
+  function updateThemeButton(btn, level) {
+    var labels = ['', 'Clair', 'Léger', 'Moyen', 'Foncé', 'Sombre'];
+
+    btn.innerHTML =
+      '<div class="theme-label">' + labels[level] + '</div>' +
+      '<div class="theme-level-indicator">' +
+        '<span class="theme-level-dot' + (level === 1 ? ' active' : '') + '"></span>' +
+        '<span class="theme-level-dot' + (level === 2 ? ' active' : '') + '"></span>' +
+        '<span class="theme-level-dot' + (level === 3 ? ' active' : '') + '"></span>' +
+        '<span class="theme-level-dot' + (level === 4 ? ' active' : '') + '"></span>' +
+        '<span class="theme-level-dot' + (level === 5 ? ' active' : '') + '"></span>' +
+      '</div>';
   }
 
   function toggleTheme() {
-    setTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
+    var currentLevel = parseInt(localStorage.getItem('themeLevel') || '1', 10);
+    var nextLevel = currentLevel >= 5 ? 1 : currentLevel + 1;
+    setTheme(nextLevel);
   }
 
   // ========== Toolbar ==========
@@ -66,7 +110,7 @@
     // Bouton thème
     var themeBtn = document.createElement('button');
     themeBtn.className = 'btn theme-toggle';
-    themeBtn.title = 'Basculer thème (Alt+T)';
+    themeBtn.title = 'Changer le thème (Alt+T) - Cliquer pour passer au niveau suivant';
     themeBtn.onclick = toggleTheme;
 
     // Bouton rafraîchir
@@ -82,8 +126,9 @@
     toolbar.appendChild(refreshBtn);
     document.body.insertBefore(toolbar, document.body.firstChild);
 
-    // Appliquer le thème au bouton
-    setTheme(localStorage.getItem('theme') || 'light');
+    // Appliquer le thème initial au bouton
+    var savedLevel = parseInt(localStorage.getItem('themeLevel') || '1', 10);
+    setTheme(savedLevel);
   }
 
   // ========== Navigation Sidebar ==========
@@ -155,11 +200,7 @@
     searchInput.type = 'text';
     searchInput.placeholder = 'Rechercher...';
     searchInput.id = 'nav-search-input';
-    var searchIcon = document.createElement('span');
-    searchIcon.className = 'nav-search-icon';
-    searchIcon.innerHTML = '🔍';
     searchDiv.appendChild(searchInput);
-    searchDiv.appendChild(searchIcon);
     header.appendChild(searchDiv);
 
     // Contenu (arbre)
@@ -178,13 +219,7 @@
     sidebar.appendChild(header);
     sidebar.appendChild(content);
 
-    // Overlay
-    var overlay = document.createElement('div');
-    overlay.className = 'nav-overlay';
-    overlay.onclick = toggleSidebar;
-
     document.body.appendChild(sidebar);
-    document.body.appendChild(overlay);
 
     // Calculer et ajuster la largeur dynamique
     adjustSidebarWidth(sidebar, navigationData);
@@ -350,16 +385,13 @@
 
   function toggleSidebar() {
     var sidebar = document.querySelector('.nav-sidebar');
-    var overlay = document.querySelector('.nav-overlay');
-    if (!sidebar || !overlay) return;
+    if (!sidebar) return;
 
     var isOpen = sidebar.classList.contains('open');
     if (isOpen) {
       sidebar.classList.remove('open');
-      overlay.classList.remove('open');
     } else {
       sidebar.classList.add('open');
-      overlay.classList.add('open');
     }
   }
 

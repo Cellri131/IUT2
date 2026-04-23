@@ -6,7 +6,7 @@
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap');
 
 :root {
-  /* Light Mode */
+  /* Niveau 1 - Thème Clair */
   --bg-primary: #ffffff;
   --bg-secondary: #f8f9fa;
   --bg-tertiary: #eef1f5;
@@ -45,8 +45,80 @@
   --shadow-color: 0 4px 14px rgba(49, 126, 251, 0.4);
 }
 
-/* Dark Mode */
-html[data-theme="dark"] {
+/* Niveau 2 - Légèrement moins clair */
+html[data-theme="level2"] {
+  --bg-primary: #eff2f7;
+  --bg-secondary: #e2e7ed;
+  --bg-tertiary: #d3dae3;
+  --text-primary: #1a1a2e;
+  --text-secondary: #4e5560;
+  --border-color: #cbd4df;
+
+  --color-red: #eb5545;
+  --color-orange: #eb893c;
+  --color-yellow: #f2ce29;
+  --color-green: #30b26a;
+  --color-teal: #25bfa2;
+  --color-blue: #449de2;
+  --color-indigo: #6572ca;
+  --color-purple: #a262bf;
+  --color-pink: #eb306f;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.08);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.15);
+}
+
+/* Niveau 3 - Intermédiaire */
+html[data-theme="level3"] {
+  --bg-primary: #545d6e;
+  --bg-secondary: #454d5d;
+  --bg-tertiary: #3a4150;
+  --text-primary: #e8ecf2;
+  --text-secondary: #b5bcc7;
+  --border-color: #6b7485;
+
+  --color-red: #f27268;
+  --color-orange: #f5a04f;
+  --color-yellow: #f7da52;
+  --color-green: #52c685;
+  --color-teal: #44ccb5;
+  --color-blue: #67adf0;
+  --color-indigo: #838fdf;
+  --color-purple: #b77dd8;
+  --color-pink: #f2618f;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.25);
+  --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.35);
+}
+
+/* Niveau 4 - Légèrement moins sombre */
+html[data-theme="level4"] {
+  --bg-primary: #1e2938;
+  --bg-secondary: #2a3542;
+  --bg-tertiary: #3d4a5b;
+  --text-primary: #dde3ec;
+  --text-secondary: #a1acbd;
+  --border-color: #566373;
+
+  --color-red: #f5807a;
+  --color-orange: #faa15c;
+  --color-yellow: #fac85f;
+  --color-green: #5ac88d;
+  --color-teal: #4dcea1;
+  --color-blue: #6baef6;
+  --color-indigo: #8895e0;
+  --color-purple: #b785da;
+  --color-pink: #f15f99;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.25);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.35);
+  --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.45);
+}
+
+/* Niveau 5 - Thème Sombre */
+html[data-theme="level5"] {
   --bg-primary: #0f172a;
   --bg-secondary: #1e293b;
   --bg-tertiary: #334155;
@@ -178,22 +250,51 @@ body {
   background: var(--bg-tertiary);
   color: var(--text-primary);
   border: 2px solid var(--border-color);
-  width: 48px;
+  width: 120px;
   height: 48px;
-  padding: 0;
+  padding: 8px;
   margin-left: auto;
-  font-size: 20px;
   border-radius: 12px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 6px;
+  flex-direction: column;
+  position: relative;
 }
 
 .theme-toggle:hover {
   background: var(--gradient-sunset);
   color: white;
   border-color: transparent;
-  transform: rotate(180deg);
+}
+
+.theme-level-indicator {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.theme-level-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--border-color);
+  transition: all 0.3s ease;
+}
+
+.theme-level-dot.active {
+  background: var(--gradient-primary);
+  box-shadow: 0 0 8px rgba(102, 126, 234, 0.6);
+  transform: scale(1.2);
+}
+
+.theme-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-family: 'JetBrains Mono', monospace;
 }
 
 .refresh-button {
@@ -387,10 +488,12 @@ table {
   border-collapse: separate;
   border-spacing: 0;
   margin: 24px 0;
-  background: var(--bg-primary);
-  border-radius: 16px;
+  background: var(--bg-secondary);
+  border: 2px solid var(--border-color);
+  border-radius: 12px;
   overflow: hidden;
   box-shadow: var(--shadow-md);
+  padding: 20px;
 }
 
 thead {
@@ -583,6 +686,194 @@ button:focus {
   }
 }
 
+/* ========== Éléments XML personnalisés ========== */
+
+/* Coefficients */
+coefficients {
+  display: block;
+  background: var(--bg-secondary);
+  border: 2px solid var(--border-color);
+  border-radius: 12px;
+  padding: 20px;
+  margin: 24px 0;
+}
+
+coefficients::before {
+  content: 'Coefficients';
+  display: block;
+  font-weight: 700;
+  font-size: 18px;
+  color: var(--text-primary);
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid var(--border-color);
+}
+
+c1, c2, c3, c4, c5, c6 {
+  display: inline-block;
+  margin: 8px 12px 8px 0;
+  padding: 10px 16px;
+  background: linear-gradient(135deg, var(--color-blue), var(--color-indigo));
+  color: white;
+  border-radius: 8px;
+  font-weight: 600;
+  font-family: 'JetBrains Mono', monospace;
+  box-shadow: var(--shadow-md);
+}
+
+c1::before { content: 'C1: '; }
+c2::before { content: 'C2: '; }
+c3::before { content: 'C3: '; }
+c4::before { content: 'C4: '; }
+c5::before { content: 'C5: '; }
+c6::before { content: 'C6: '; }
+
+c1::after { content: '' attr(valeur) ''; }
+c2::after { content: '' attr(valeur) ''; }
+c3::after { content: '' attr(valeur) ''; }
+c4::after { content: '' attr(valeur) ''; }
+c5::after { content: '' attr(valeur) ''; }
+c6::after { content: '' attr(valeur) ''; }
+
+/* SAEs */
+saes {
+  display: block;
+  background: var(--bg-secondary);
+  border: 2px solid var(--border-color);
+  border-radius: 12px;
+  padding: 20px;
+  margin: 24px 0;
+}
+
+saes::before {
+  content: 'SAÉ (Situations d\'Apprentissage et d\'Évaluation)';
+  display: block;
+  font-weight: 700;
+  font-size: 18px;
+  color: var(--text-primary);
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid var(--border-color);
+}
+
+sae {
+  display: block;
+  margin: 12px 0;
+  padding: 12px 16px;
+  background: var(--bg-tertiary);
+  border-left: 4px solid var(--color-green);
+  border-radius: 6px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+sae:hover {
+  background: var(--bg-primary);
+  transform: translateX(4px);
+  border-left-color: var(--color-teal);
+}
+
+/* Intervenants */
+intervenants {
+  display: block;
+  background: var(--bg-secondary);
+  border: 2px solid var(--border-color);
+  border-radius: 12px;
+  padding: 20px;
+  margin: 24px 0;
+}
+
+intervenants::before {
+  content: 'Intervenants';
+  display: block;
+  font-weight: 700;
+  font-size: 18px;
+  color: var(--text-primary);
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid var(--border-color);
+}
+
+intervenant {
+  display: block;
+  margin: 12px 0;
+  padding: 12px 16px;
+  background: var(--bg-tertiary);
+  border-left: 4px solid var(--color-purple);
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+intervenant:hover {
+  background: var(--bg-primary);
+  transform: translateX(4px);
+  border-left-color: var(--color-pink);
+}
+
+intervenant::before {
+  content: '' attr(nom);
+  display: block;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+intervenant::after {
+  content: '' attr(mail);
+  display: block;
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* Contenu */
+contenu {
+  display: block;
+  margin: 24px 0;
+}
+
+article {
+  display: block;
+  margin: 20px 0;
+}
+
+titre1 {
+  display: block;
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 24px 0 16px 0;
+  padding-left: 20px;
+  position: relative;
+}
+
+titre1::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  width: 5px;
+  background: var(--gradient-warm);
+  border-radius: 3px;
+}
+
+titre2 {
+  display: block;
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--color-blue);
+  margin: 20px 0 12px 0;
+}
+
+titre3 {
+  display: block;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 16px 0 8px 0;
+}
+
 /* ========== Impression ========== */
 @media print {
   .toolbar {
@@ -626,25 +917,6 @@ button:focus {
   border-color: transparent;
 }
 
-.nav-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(4px);
-  z-index: 9998;
-  opacity: 0;
-  visibility: hidden;
-  transition: opacity 0.3s ease, visibility 0.3s ease;
-}
-
-.nav-overlay.open {
-  opacity: 1;
-  visibility: visible;
-}
-
 .nav-sidebar {
   position: fixed;
   top: 0;
@@ -662,7 +934,7 @@ button:focus {
 }
 
 .nav-sidebar.open {
-  left: 0;
+  left: 0 !important;
 }
 
 .nav-header {
