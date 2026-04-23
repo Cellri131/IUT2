@@ -10,6 +10,7 @@
     loadNavigationTree();
     enhanceImages();
     animateElements();
+    initFavorites();
   });
 
   // ========== Gestion du thème ==========
@@ -107,6 +108,19 @@
     backBtn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M19 12H5M12 19l-7-7 7-7"/></svg> Retour';
     backBtn.onclick = function() { history.back(); };
 
+    // Conteneur pour les favoris (sera rempli dynamiquement)
+    var favoritesContainer = document.createElement('div');
+    favoritesContainer.className = 'favorites-container';
+    favoritesContainer.id = 'favorites-container';
+
+    // Bouton favori
+    var favoriteBtn = document.createElement('button');
+    favoriteBtn.className = 'btn favorite-button';
+    favoriteBtn.id = 'favorite-button';
+    favoriteBtn.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>';
+    favoriteBtn.title = 'Ajouter aux favoris (Alt+F)';
+    favoriteBtn.onclick = toggleFavorite;
+
     // Bouton thème
     var themeBtn = document.createElement('button');
     themeBtn.className = 'btn theme-toggle';
@@ -122,6 +136,8 @@
 
     toolbar.appendChild(menuBtn);
     toolbar.appendChild(backBtn);
+    toolbar.appendChild(favoritesContainer);
+    toolbar.appendChild(favoriteBtn);
     toolbar.appendChild(themeBtn);
     toolbar.appendChild(refreshBtn);
     document.body.insertBefore(toolbar, document.body.firstChild);
@@ -476,6 +492,186 @@
     });
   }
 
+  // ========== Favoris ==========
+  function initFavorites() {
+    updateFavoriteButton();
+    renderFavorites();
+  }
+
+  function getFavorites() {
+    var stored = localStorage.getItem('favorites');
+    return stored ? JSON.parse(stored) : [];
+  }
+
+  function saveFavorites(favorites) {
+    localStorage.setItem('favorites', JSON.stringify(favorites));
+  }
+
+  function getCurrentPageInfo() {
+    var path = window.location.pathname;
+
+    // Pour les fichiers locaux, normaliser le chemin
+    if (window.location.protocol === 'file:') {
+      var pedagogIndex = path.indexOf('/pedago/');
+      if (pedagogIndex !== -1) {
+        path = path.substring(pedagogIndex);
+      }
+    }
+
+    // Extraire le nom du dossier parent
+    var parts = path.split('/').filter(Boolean);
+    var folderName = '';
+
+    // Si on est sur un index.html, prendre le dossier parent
+    if (parts.length > 0) {
+      var lastPart = parts[parts.length - 1];
+      if (lastPart.indexOf('.') !== -1) {
+        // C'est un fichier, prendre le dossier parent
+        parts.pop();
+      }
+      if (parts.length > 0) {
+        folderName = parts[parts.length - 1];
+      }
+    }
+
+    var label = extractFolderLabel(folderName);
+
+    return {
+      path: path,
+      label: label || 'Page'
+    };
+  }
+
+  function extractFolderLabel(folderName) {
+    if (!folderName) return '';
+    // Prendre les 5 premiers caractères et les mettre en majuscules
+    return folderName.substring(0, 5).toUpperCase();
+  }
+
+  function isFavorite(path) {
+    var favorites = getFavorites();
+    return favorites.some(function(fav) {
+      return fav.path === path;
+    });
+  }
+
+  function toggleFavorite() {
+    var pageInfo = getCurrentPageInfo();
+    var favorites = getFavorites();
+    var index = favorites.findIndex(function(fav) {
+      return fav.path === pageInfo.path;
+    });
+
+    if (index !== -1) {
+      // Retirer des favoris
+      favorites.splice(index, 1);
+      showNotification('Retiré des favoris', 'info');
+    } else {
+      // Ajouter aux favoris
+      favorites.push(pageInfo);
+      showNotification('Ajouté aux favoris', 'success');
+    }
+
+    saveFavorites(favorites);
+    updateFavoriteButton();
+    renderFavorites();
+  }
+
+  function updateFavoriteButton() {
+    var btn = document.getElementById('favorite-button');
+    if (!btn) return;
+
+    var pageInfo = getCurrentPageInfo();
+    var isCurrentFavorite = isFavorite(pageInfo.path);
+
+    if (isCurrentFavorite) {
+      btn.classList.add('active');
+      btn.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>';
+      btn.title = 'Retirer des favoris (Alt+F)';
+    } else {
+      btn.classList.remove('active');
+      btn.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>';
+      btn.title = 'Ajouter aux favoris (Alt+F)';
+    }
+  }
+
+  function renderFavorites() {
+    var container = document.getElementById('favorites-container');
+    if (!container) return;
+
+    var favorites = getFavorites();
+    container.innerHTML = '';
+
+    if (favorites.length === 0) return;
+
+    // Ajouter le séparateur
+    var separator = document.createElement('div');
+    separator.className = 'favorites-separator';
+    container.appendChild(separator);
+
+    // Ajouter chaque favori
+    favorites.forEach(function(fav, index) {
+      var item = document.createElement('div');
+      item.className = 'favorite-item';
+      item.textContent = fav.label;
+      item.title = fav.path;
+
+      // Clic pour naviguer
+      item.onclick = function(e) {
+        if (e.target.classList.contains('favorite-item-remove')) return;
+        navigateToFavorite(fav.path);
+      };
+
+      // Bouton de suppression
+      var removeBtn = document.createElement('span');
+      removeBtn.className = 'favorite-item-remove';
+      removeBtn.innerHTML = '×';
+      removeBtn.title = 'Retirer des favoris';
+      removeBtn.onclick = function(e) {
+        e.stopPropagation();
+        removeFavorite(index);
+      };
+
+      item.appendChild(removeBtn);
+      container.appendChild(item);
+    });
+  }
+
+  function removeFavorite(index) {
+    var favorites = getFavorites();
+    favorites.splice(index, 1);
+    saveFavorites(favorites);
+    updateFavoriteButton();
+    renderFavorites();
+    showNotification('Favori supprimé', 'info');
+  }
+
+  function navigateToFavorite(path) {
+    // Calculer le chemin relatif depuis la page actuelle
+    var currentPath = window.location.pathname;
+
+    // Pour les fichiers locaux
+    if (window.location.protocol === 'file:') {
+      var pedagogIndex = currentPath.indexOf('/pedago/');
+      if (pedagogIndex !== -1) {
+        currentPath = currentPath.substring(pedagogIndex);
+      }
+    }
+
+    // Calculer le nombre de niveaux à remonter
+    var currentParts = currentPath.split('/').filter(Boolean);
+    if (currentParts.length > 0 && currentParts[currentParts.length - 1].indexOf('.') !== -1) {
+      currentParts.pop(); // Retirer le fichier
+    }
+
+    var targetParts = path.split('/').filter(Boolean);
+    var depth = currentParts.length;
+    var relativePath = depth > 0 ? '../'.repeat(depth) : './';
+    relativePath += targetParts.join('/');
+
+    window.location.href = relativePath;
+  }
+
   // ========== Rafraîchissement via API serveur ==========
   function refreshPage() {
     var btn = document.querySelector('.refresh-button');
@@ -605,6 +801,7 @@
     if (e.altKey && e.key === 'ArrowLeft') { e.preventDefault(); history.back(); }
     if (e.altKey && (e.key === 'r' || e.key === 'R')) { e.preventDefault(); refreshPage(); }
     if (e.altKey && (e.key === 'n' || e.key === 'N')) { e.preventDefault(); toggleSidebar(); }
+    if (e.altKey && (e.key === 'f' || e.key === 'F')) { e.preventDefault(); toggleFavorite(); }
   });
 
   // ========== CSS animations ==========
