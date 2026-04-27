@@ -899,35 +899,73 @@
     });
   }
 
-  // ========== Curseur personnalisé ==========
+  // ========== Curseur personnalisé avec physique ==========
   function initCustomCursor() {
     // Désactiver sur mobile
     if ('ontouchstart' in window) return;
 
-    var cursor = document.createElement('div');
-    cursor.className = 'custom-cursor';
-    document.body.appendChild(cursor);
+    // Cacher le curseur par défaut
+    document.body.style.cursor = 'none';
+    document.documentElement.style.cursor = 'none';
 
-    var cursorX = 0;
-    var cursorY = 0;
-    var currentX = 0;
-    var currentY = 0;
+    // Créer le point central
+    var cursorDot = document.createElement('div');
+    cursorDot.className = 'cursor-dot';
+    document.body.appendChild(cursorDot);
+
+    // Créer le cercle extérieur
+    var cursorCircle = document.createElement('div');
+    cursorCircle.className = 'cursor-circle';
+    document.body.appendChild(cursorCircle);
+
+    var mouseX = 0;
+    var mouseY = 0;
+    var dotX = 0;
+    var dotY = 0;
+    var circleX = 0;
+    var circleY = 0;
+    var prevX = 0;
+    var prevY = 0;
+    var velocityX = 0;
+    var velocityY = 0;
 
     document.addEventListener('mousemove', function(e) {
-      cursorX = e.clientX;
-      cursorY = e.clientY;
+      mouseX = e.clientX;
+      mouseY = e.clientY;
     });
 
-    // Animation fluide du curseur
+    // Animation fluide avec physique
     function animateCursor() {
-      var diffX = cursorX - currentX;
-      var diffY = cursorY - currentY;
+      // Calculer la vélocité pour l'effet de stretch
+      velocityX = mouseX - prevX;
+      velocityY = mouseY - prevY;
+      prevX = mouseX;
+      prevY = mouseY;
 
-      currentX += diffX * 0.15;
-      currentY += diffY * 0.15;
+      // Le point suit directement la souris (très rapide)
+      dotX += (mouseX - dotX) * 0.85;
+      dotY += (mouseY - dotY) * 0.85;
 
-      cursor.style.left = currentX + 'px';
-      cursor.style.top = currentY + 'px';
+      // Le cercle suit plus lentement
+      circleX += (mouseX - circleX) * 0.15;
+      circleY += (mouseY - circleY) * 0.15;
+
+      // Calculer l'étirement basé sur la vélocité
+      var velocity = Math.sqrt(velocityX * velocityX + velocityY * velocityY);
+      var stretchFactor = Math.min(velocity * 0.03, 0.5); // Limiter l'étirement
+      var angle = Math.atan2(velocityY, velocityX);
+
+      // Appliquer l'étirement dans la direction du mouvement
+      var scaleX = 1 + stretchFactor;
+      var scaleY = 1 - stretchFactor * 0.5;
+
+      // Positionner et transformer
+      cursorDot.style.left = dotX + 'px';
+      cursorDot.style.top = dotY + 'px';
+
+      cursorCircle.style.left = circleX + 'px';
+      cursorCircle.style.top = circleY + 'px';
+      cursorCircle.style.transform = 'translate(-50%, -50%) rotate(' + angle + 'rad) scale(' + scaleX + ', ' + scaleY + ')';
 
       requestAnimationFrame(animateCursor);
     }
@@ -939,11 +977,14 @@
 
     interactiveElements.forEach(function(el) {
       el.addEventListener('mouseenter', function() {
-        cursor.classList.add('hover');
+        cursorDot.classList.add('hover');
+        cursorCircle.classList.add('hover');
+        el.style.cursor = 'none';
       });
 
       el.addEventListener('mouseleave', function() {
-        cursor.classList.remove('hover');
+        cursorDot.classList.remove('hover');
+        cursorCircle.classList.remove('hover');
       });
     });
   }

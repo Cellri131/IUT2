@@ -8,17 +8,17 @@
 :root {
   /* Niveau 1 - Thème Clair */
   --bg-primary: #ffffff;
-  --bg-secondary: #fafafa;
-  --bg-tertiary: #f5f5f5;
+  --bg-secondary: #eeeeee;
+  --bg-tertiary: #d5d5d5;
   --text-primary: #0a0a0a;
-  --text-secondary: #737373;
-  --border-color: #e5e5e5;
-  --accent-color: #0066ff;
+  --text-secondary: #666666;
+  --border-color: #cccccc;
+  --accent-color: #ff6b35;
 
-  /* Ombres subtiles */
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
-  --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.06);
-  --shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.08);
+  /* Ombres marquées */
+  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.15);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.20);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.25);
 
   /* Transition élégante */
   --transition-smooth: cubic-bezier(0.19, 1, 0.22, 1);
@@ -26,13 +26,13 @@
 
 /* Niveau 2 - Légèrement moins clair */
 html[data-theme="level2"] {
-  --bg-primary: #f8f8f8;
-  --bg-secondary: #f0f0f0;
-  --bg-tertiary: #e8e8e8;
+  --bg-primary: #f0f0f0;
+  --bg-secondary: #dddddd;
+  --bg-tertiary: #c8c8c8;
   --text-primary: #1a1a1a;
-  --text-secondary: #666666;
-  --border-color: #d4d4d4;
-  --accent-color: #0052cc;
+  --text-secondary: #555555;
+  --border-color: #b8b8b8;
+  --accent-color: #ff5722;
 }
 
 /* Niveau 3 - Intermédiaire */
@@ -89,6 +89,12 @@ body {
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  cursor: none !important;
+}
+
+/* Cacher le curseur partout */
+*, *::before, *::after {
+  cursor: none !important;
 }
 
 /* ========== Animations avancées ========== */
@@ -282,24 +288,72 @@ html[data-page-loading] body::before {
   will-change: transform;
 }
 
-/* Curseur personnalisé */
-.custom-cursor {
-  width: 20px;
-  height: 20px;
-  border: 2px solid var(--accent-color);
+/* Curseur personnalisé avec physique */
+.cursor-dot {
+  width: 10px;
+  height: 10px;
+  background: var(--accent-color);
   border-radius: 50%;
   position: fixed;
   pointer-events: none;
-  z-index: 99999;
+  z-index: 999999;
   transform: translate(-50%, -50%);
-  transition: width 0.3s var(--transition-smooth), height 0.3s var(--transition-smooth), border-color 0.3s var(--transition-smooth);
-  mix-blend-mode: difference;
+  transition: clip-path 0.3s var(--transition-smooth),
+              border-radius 0.3s var(--transition-smooth),
+              width 0.3s var(--transition-smooth),
+              height 0.3s var(--transition-smooth);
+  will-change: transform;
 }
 
-.custom-cursor.hover {
-  width: 40px;
-  height: 40px;
-  border-color: var(--text-primary);
+.cursor-dot.hover {
+  width: 16px;
+  height: 18px;
+  border-radius: 0;
+  clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
+}
+
+.cursor-circle {
+  width: 32px;
+  height: 32px;
+  border: 1.5px solid var(--accent-color);
+  border-radius: 50%;
+  position: fixed;
+  pointer-events: none;
+  z-index: 999998;
+  transform: translate(-50%, -50%);
+  transition: width 0.3s var(--transition-smooth),
+              height 0.3s var(--transition-smooth),
+              border-width 0.3s var(--transition-smooth);
+  will-change: transform;
+}
+
+.cursor-circle.hover {
+  width: 50px;
+  height: 50px;
+  animation: cursorWave 0.8s ease-in-out infinite;
+}
+
+@keyframes cursorWave {
+  0% {
+    border-radius: 30% 70% 70% 30% / 30% 30% 70% 70%;
+    transform: translate(-50%, -50%) rotate(0deg);
+  }
+  25% {
+    border-radius: 70% 30% 30% 70% / 70% 70% 30% 30%;
+    transform: translate(-50%, -50%) rotate(90deg);
+  }
+  50% {
+    border-radius: 30% 70% 70% 30% / 30% 30% 70% 70%;
+    transform: translate(-50%, -50%) rotate(180deg);
+  }
+  75% {
+    border-radius: 70% 30% 30% 70% / 70% 70% 30% 30%;
+    transform: translate(-50%, -50%) rotate(270deg);
+  }
+  100% {
+    border-radius: 30% 70% 70% 30% / 30% 30% 70% 70%;
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
 }
 
 /* Hover magnétique sur les boutons */
@@ -716,10 +770,11 @@ a::after {
   position: absolute;
   bottom: -2px;
   left: 0;
-  width: 0;
+  width: 100%;
   height: 1px;
   background: var(--accent-color);
-  transition: width 0.4s var(--transition-smooth);
+  opacity: 0.3;
+  transition: opacity 0.3s var(--transition-smooth);
 }
 
 a:hover {
@@ -727,13 +782,13 @@ a:hover {
 }
 
 a:hover::after {
-  width: 100%;
+  opacity: 1;
 }
 
 /* ========== Cadres minimalistes avec hover sophistiqué ========== */
 .cadre {
   background: var(--bg-secondary);
-  border: 1px solid var(--border-color);
+  border: 2px solid var(--border-color);
   border-radius: 8px;
   padding: 24px;
   margin: 24px 0;
@@ -741,6 +796,7 @@ a:hover::after {
   animation: fadeInUp 0.4s var(--transition-smooth) backwards;
   position: relative;
   overflow: hidden;
+  box-shadow: var(--shadow-md);
 }
 
 .cadre::before {
@@ -798,6 +854,7 @@ table {
   border: 1px solid var(--border-color);
   border-radius: 8px;
   overflow: hidden;
+  box-shadow: var(--shadow-sm);
 }
 
 thead {
