@@ -4,6 +4,139 @@
 
   var navigationData = null; // Stockage de l'arbre de navigation
 
+  // Créer l'overlay dès le chargement
+  var pageTransitionOverlay = null;
+
+  // ========== Transitions de page avec effet DONUT ==========
+  function initPageTransitions() {
+    // Créer l'overlay de transition
+    if (!pageTransitionOverlay) {
+      pageTransitionOverlay = document.createElement('div');
+      pageTransitionOverlay.className = 'page-transition-overlay';
+      document.body.appendChild(pageTransitionOverlay);
+    }
+
+    // Intercepter les clics sur les liens internes
+    document.addEventListener('click', function(e) {
+      var target = e.target.closest('a');
+      if (!target) return;
+
+      var href = target.getAttribute('href');
+      if (!href || href.startsWith('#') || href.startsWith('http') || href.startsWith('mailto')) return;
+
+      e.preventDefault();
+
+      // Calculer la position du clic en pourcentage
+      var absoluteX = (e.clientX / window.innerWidth) * 100;
+      var absoluteY = (e.clientY / window.innerHeight) * 100;
+
+      // Sauvegarder la position pour la page suivante
+      sessionStorage.setItem('transitionClickX', absoluteX + '%');
+      sessionStorage.setItem('transitionClickY', absoluteY + '%');
+      sessionStorage.setItem('transitionInProgress', 'true');
+
+      pageTransitionOverlay.style.setProperty('--click-x', absoluteX + '%');
+      pageTransitionOverlay.style.setProperty('--click-y', absoluteY + '%');
+
+      // Rendre l'overlay visible
+      pageTransitionOverlay.style.opacity = '1';
+      pageTransitionOverlay.style.pointerEvents = 'all';
+
+      // Animation du donut avec JS (plus fiable que CSS @keyframes avec variables)
+      var startTime = Date.now();
+      var duration = 1200;
+      var holeSize = 15;
+      var startRadius = 40;
+      var endRadius = 150 * Math.max(window.innerWidth, window.innerHeight) / 100;
+
+      function animateDonut() {
+        var elapsed = Date.now() - startTime;
+        var progress = Math.min(elapsed / duration, 1);
+        var easedProgress = 1 - Math.pow(1 - progress, 3); // ease-out cubic
+
+        var currentRadius = startRadius + (endRadius - startRadius) * easedProgress;
+        var mask = 'radial-gradient(circle at ' + absoluteX + '% ' + absoluteY + '%, transparent 0, transparent ' + holeSize + 'px, black ' + holeSize + 'px, black ' + currentRadius + 'px)';
+
+        pageTransitionOverlay.style.webkitMaskImage = mask;
+        pageTransitionOverlay.style.maskImage = mask;
+
+        if (progress < 1) {
+          requestAnimationFrame(animateDonut);
+        } else {
+          // Animation terminée, naviguer
+          window.location.href = href;
+        }
+      }
+
+      requestAnimationFrame(animateDonut);
+    });
+  }
+
+  // Fonction pour lancer l'animation de reveal une fois la page chargée
+  function revealNewPage() {
+    var hasTransition = sessionStorage.getItem('transitionInProgress');
+
+    if (hasTransition === 'true') {
+      // Récupérer la position du clic
+      var clickX = sessionStorage.getItem('transitionClickX') || '50%';
+      var clickY = sessionStorage.getItem('transitionClickY') || '50%';
+
+      // Créer l'overlay si pas déjà fait
+      if (!pageTransitionOverlay) {
+        pageTransitionOverlay = document.createElement('div');
+        pageTransitionOverlay.className = 'page-transition-overlay';
+        document.body.appendChild(pageTransitionOverlay);
+      }
+
+      // Mettre l'overlay en plein écran bleu avec le donut (trou petit)
+      pageTransitionOverlay.style.opacity = '1';
+      pageTransitionOverlay.style.pointerEvents = 'all';
+
+      var holeSize = 15;
+      var maxRadius = 150 * Math.max(window.innerWidth, window.innerHeight) / 100;
+
+      // État initial : grand donut (petit trou, grand extérieur)
+      var initialMask = 'radial-gradient(circle at ' + clickX + ' ' + clickY + ', transparent 0, transparent ' + holeSize + 'px, black ' + holeSize + 'px, black ' + maxRadius + 'px)';
+      pageTransitionOverlay.style.webkitMaskImage = initialMask;
+      pageTransitionOverlay.style.maskImage = initialMask;
+
+      // Animation du trou qui grandit avec JS
+      setTimeout(function() {
+        var startTime = Date.now();
+        var duration = 1200;
+
+        function animateHole() {
+          var elapsed = Date.now() - startTime;
+          var progress = Math.min(elapsed / duration, 1);
+          var easedProgress = 1 - Math.pow(1 - progress, 3); // ease-out cubic
+
+          var currentHole = holeSize + (maxRadius - holeSize) * easedProgress;
+          var mask = 'radial-gradient(circle at ' + clickX + ' ' + clickY + ', transparent 0, transparent ' + currentHole + 'px, black ' + currentHole + 'px, black ' + maxRadius + 'px)';
+
+          pageTransitionOverlay.style.webkitMaskImage = mask;
+          pageTransitionOverlay.style.maskImage = mask;
+
+          if (progress < 1) {
+            requestAnimationFrame(animateHole);
+          } else {
+            // Animation terminée, nettoyer
+            pageTransitionOverlay.style.opacity = '0';
+            pageTransitionOverlay.style.webkitMaskImage = 'none';
+            pageTransitionOverlay.style.maskImage = 'none';
+            pageTransitionOverlay.style.pointerEvents = 'none';
+
+            // Nettoyer le sessionStorage
+            sessionStorage.removeItem('transitionClickX');
+            sessionStorage.removeItem('transitionClickY');
+            sessionStorage.removeItem('transitionInProgress');
+          }
+        }
+
+        requestAnimationFrame(animateHole);
+      }, 100);
+    }
+  }
+
   document.addEventListener('DOMContentLoaded', function() {
     initTheme();
     setupToolbar();
@@ -11,6 +144,15 @@
     enhanceImages();
     animateElements();
     initFavorites();
+    initPageTransitions();
+    initScrollAnimations();
+    initMagneticButtons();
+    initCustomCursor();
+  });
+
+  // Attendre que TOUT soit chargé avant de révéler la page
+  window.addEventListener('load', function() {
+    revealNewPage();
   });
 
   // ========== Gestion du thème ==========
@@ -672,6 +814,127 @@
     window.location.href = relativePath;
   }
 
+
+  // ========== Animations au scroll ==========
+  function initScrollAnimations() {
+    var observerOptions = {
+      threshold: 0.1,
+      rootMargin: '0px 0px -50px 0px'
+    };
+
+    var observer = new IntersectionObserver(function(entries) {
+      entries.forEach(function(entry) {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('is-visible');
+        }
+      });
+    }, observerOptions);
+
+    // Observer tous les éléments avec data-scroll
+    var scrollElements = document.querySelectorAll('.cadre, .cellule, tbody tr');
+    scrollElements.forEach(function(el, index) {
+      el.setAttribute('data-scroll', '');
+      el.style.transitionDelay = (index * 0.05) + 's';
+      observer.observe(el);
+    });
+  }
+
+  // ========== Boutons magnétiques ==========
+  function initMagneticButtons() {
+    var buttons = document.querySelectorAll('.btn, .favorite-item');
+
+    buttons.forEach(function(btn) {
+      btn.classList.add('btn-magnetic');
+
+      btn.addEventListener('mousemove', function(e) {
+        var rect = btn.getBoundingClientRect();
+        var x = e.clientX - rect.left - rect.width / 2;
+        var y = e.clientY - rect.top - rect.height / 2;
+
+        // Effet magnétique subtil (max 5px)
+        var moveX = x * 0.15;
+        var moveY = y * 0.15;
+
+        btn.style.transform = 'translate(' + moveX + 'px, ' + moveY + 'px)';
+      });
+
+      btn.addEventListener('mouseleave', function() {
+        btn.style.transform = 'translate(0, 0)';
+      });
+    });
+  }
+
+  // ========== Curseur personnalisé ==========
+  function initCustomCursor() {
+    // Désactiver sur mobile
+    if ('ontouchstart' in window) return;
+
+    var cursor = document.createElement('div');
+    cursor.className = 'custom-cursor';
+    document.body.appendChild(cursor);
+
+    var cursorX = 0;
+    var cursorY = 0;
+    var currentX = 0;
+    var currentY = 0;
+
+    document.addEventListener('mousemove', function(e) {
+      cursorX = e.clientX;
+      cursorY = e.clientY;
+    });
+
+    // Animation fluide du curseur
+    function animateCursor() {
+      var diffX = cursorX - currentX;
+      var diffY = cursorY - currentY;
+
+      currentX += diffX * 0.15;
+      currentY += diffY * 0.15;
+
+      cursor.style.left = currentX + 'px';
+      cursor.style.top = currentY + 'px';
+
+      requestAnimationFrame(animateCursor);
+    }
+
+    animateCursor();
+
+    // Effet hover sur les éléments interactifs
+    var interactiveElements = document.querySelectorAll('a, button, .btn, .favorite-item, .nav-file, .nav-folder');
+
+    interactiveElements.forEach(function(el) {
+      el.addEventListener('mouseenter', function() {
+        cursor.classList.add('hover');
+      });
+
+      el.addEventListener('mouseleave', function() {
+        cursor.classList.remove('hover');
+      });
+    });
+  }
+
+  // ========== Parallaxe subtil au mouvement de la souris ==========
+  function initParallax() {
+    var parallaxElements = document.querySelectorAll('.cadre, h1, h2');
+
+    parallaxElements.forEach(function(el) {
+      el.setAttribute('data-parallax', '');
+    });
+
+    document.addEventListener('mousemove', function(e) {
+      var x = (e.clientX / window.innerWidth - 0.5) * 20;
+      var y = (e.clientY / window.innerHeight - 0.5) * 20;
+
+      parallaxElements.forEach(function(el, index) {
+        var depth = (index % 3 + 1) * 0.5;
+        el.style.transform = 'translate(' + (x * depth) + 'px, ' + (y * depth) + 'px)';
+      });
+    });
+  }
+
+  // Initialiser le parallaxe (désactivé par défaut, peut être activé si souhaité)
+  // initParallax();
+
   // ========== Rafraîchissement via API serveur ==========
   function refreshPage() {
     var btn = document.querySelector('.refresh-button');
@@ -745,53 +1008,116 @@
     });
   }
 
-  // ========== Images ==========
+  // ========== Images avec reveal sophistiqué ==========
   function enhanceImages() {
     document.querySelectorAll('img').forEach(function(img) {
+      // Wrapper pour l'effet de reveal
+      if (!img.parentElement.classList.contains('img-reveal')) {
+        var wrapper = document.createElement('div');
+        wrapper.className = 'img-reveal';
+        img.parentNode.insertBefore(wrapper, img);
+        wrapper.appendChild(img);
+
+        // Observer pour déclencher l'animation au scroll
+        var observer = new IntersectionObserver(function(entries) {
+          entries.forEach(function(entry) {
+            if (entry.isIntersecting) {
+              wrapper.classList.add('animate');
+              observer.unobserve(entry.target);
+            }
+          });
+        }, { threshold: 0.2 });
+
+        observer.observe(wrapper);
+      }
+
+      // Gestion du chargement
       if (!img.complete) {
         img.style.opacity = '0';
         img.addEventListener('load', function() {
-          this.style.transition = 'opacity 0.4s ease';
+          this.style.transition = 'opacity 0.6s var(--transition-smooth)';
           this.style.opacity = '1';
         });
       }
+
+      // Erreur de chargement
       img.addEventListener('error', function() {
         this.style.opacity = '0.4';
-        this.style.border = '2px dashed var(--border-color)';
+        this.style.border = '1px dashed var(--border-color)';
         this.title = 'Image non disponible';
       });
+
+      // Modal au clic
       img.addEventListener('click', function() {
         if (this.title !== 'Image non disponible') openModal(this.src, this.alt);
       });
     });
   }
 
-  // ========== Modal Image ==========
+  // ========== Modal Image avec animations ==========
   function openModal(src, alt) {
     var modal = document.createElement('div');
     modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.95);' +
-      'display:flex;align-items:center;justify-content:center;z-index:10000;cursor:pointer;padding:20px;';
+      'display:flex;align-items:center;justify-content:center;z-index:10000;cursor:pointer;padding:20px;' +
+      'opacity:0;transition:opacity 0.3s var(--transition-smooth);backdrop-filter:blur(10px);';
 
     var img = document.createElement('img');
     img.src = src;
     img.alt = alt || '';
-    img.style.cssText = 'max-width:90%;max-height:90%;object-fit:contain;border-radius:12px;box-shadow:0 0 40px rgba(255,255,255,.1);';
+    img.style.cssText = 'max-width:90%;max-height:90%;object-fit:contain;border-radius:8px;' +
+      'box-shadow:0 20px 60px rgba(0,0,0,.5);transform:scale(0.9);opacity:0;' +
+      'transition:all 0.4s var(--transition-smooth);';
 
     var closeBtn = document.createElement('button');
-    closeBtn.innerHTML = '\u2715';
-    closeBtn.style.cssText = 'position:absolute;top:20px;right:20px;background:linear-gradient(135deg,#667eea,#764ba2);' +
-      'color:#fff;border:none;font-size:24px;padding:12px 16px;cursor:pointer;border-radius:8px;';
+    closeBtn.innerHTML = '×';
+    closeBtn.style.cssText = 'position:absolute;top:20px;right:20px;background:var(--bg-tertiary);' +
+      'color:var(--text-primary);border:1px solid var(--border-color);font-size:24px;' +
+      'padding:8px 14px;cursor:pointer;border-radius:6px;transition:all 0.2s var(--transition-smooth);' +
+      'opacity:0;transform:translateY(-10px);';
 
-    function close() { if (document.body.contains(modal)) document.body.removeChild(modal); }
+    closeBtn.addEventListener('mouseenter', function() {
+      this.style.background = 'var(--accent-color)';
+      this.style.color = 'white';
+      this.style.borderColor = 'var(--accent-color)';
+    });
+
+    closeBtn.addEventListener('mouseleave', function() {
+      this.style.background = 'var(--bg-tertiary)';
+      this.style.color = 'var(--text-primary)';
+      this.style.borderColor = 'var(--border-color)';
+    });
+
+    function close() {
+      modal.style.opacity = '0';
+      img.style.transform = 'scale(0.9)';
+      img.style.opacity = '0';
+      closeBtn.style.opacity = '0';
+      setTimeout(function() {
+        if (document.body.contains(modal)) document.body.removeChild(modal);
+      }, 300);
+    }
 
     modal.appendChild(img);
     modal.appendChild(closeBtn);
     document.body.appendChild(modal);
 
+    // Animations d'entrée
+    setTimeout(function() {
+      modal.style.opacity = '1';
+      img.style.transform = 'scale(1)';
+      img.style.opacity = '1';
+      closeBtn.style.opacity = '1';
+      closeBtn.style.transform = 'translateY(0)';
+    }, 10);
+
     modal.onclick = function(e) { if (e.target === modal) close(); };
     closeBtn.onclick = close;
+
     document.addEventListener('keydown', function handler(e) {
-      if (e.key === 'Escape') { close(); document.removeEventListener('keydown', handler); }
+      if (e.key === 'Escape') {
+        close();
+        document.removeEventListener('keydown', handler);
+      }
     });
   }
 
