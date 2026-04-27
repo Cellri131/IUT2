@@ -4,8 +4,63 @@
 
   var navigationData = null; // Stockage de l'arbre de navigation
 
-  // Créer l'overlay dès le chargement
-  var pageTransitionOverlay = null;
+  // ========== INITIALISATION IMMÉDIATE (avant DOMContentLoaded) ==========
+
+  // Appliquer le thème immédiatement pour éviter le flash blanc
+  (function applyThemeImmediately() {
+    var savedLevel = localStorage.getItem('themeLevel');
+    var themeLevel = 1;
+
+    if (savedLevel) {
+      themeLevel = parseInt(savedLevel, 10);
+    } else {
+      var saved = localStorage.getItem('theme');
+      if (saved === 'dark') {
+        themeLevel = 5;
+      } else if (saved === 'light') {
+        themeLevel = 1;
+      } else {
+        var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        themeLevel = prefersDark ? 5 : 1;
+      }
+    }
+
+    themeLevel = Math.max(1, Math.min(5, themeLevel));
+    if (themeLevel === 1) {
+      document.documentElement.removeAttribute('data-theme');
+    } else {
+      document.documentElement.setAttribute('data-theme', 'level' + themeLevel);
+    }
+  })();
+
+  // Créer l'overlay immédiatement et l'afficher si une transition est en cours
+  var pageTransitionOverlay = document.createElement('div');
+  pageTransitionOverlay.className = 'page-transition-overlay';
+
+  // Si on arrive d'une transition, afficher l'overlay immédiatement pour masquer le flash
+  if (sessionStorage.getItem('transitionInProgress') === 'true') {
+    var clickX = sessionStorage.getItem('transitionClickX') || '50%';
+    var clickY = sessionStorage.getItem('transitionClickY') || '50%';
+
+    var holeSize = 20;
+    var maxRadius = 150 * Math.max(window.innerWidth, window.innerHeight) / 100;
+
+    // Afficher l'overlay avec le donut immédiatement
+    var initialMask = 'radial-gradient(circle at ' + clickX + ' ' + clickY + ', transparent 0, transparent ' + holeSize + 'px, black ' + holeSize + 'px, black ' + maxRadius + 'px)';
+    pageTransitionOverlay.style.webkitMaskImage = initialMask;
+    pageTransitionOverlay.style.maskImage = initialMask;
+    pageTransitionOverlay.style.opacity = '1';
+    pageTransitionOverlay.style.pointerEvents = 'all';
+  }
+
+  // Ajouter l'overlay au DOM dès que possible
+  if (document.body) {
+    document.body.appendChild(pageTransitionOverlay);
+  } else {
+    document.addEventListener('DOMContentLoaded', function() {
+      document.body.appendChild(pageTransitionOverlay);
+    });
+  }
 
   // ========== Transitions de page avec effet DONUT ==========
   function initPageTransitions() {
@@ -35,40 +90,31 @@
       sessionStorage.setItem('transitionClickY', absoluteY + '%');
       sessionStorage.setItem('transitionInProgress', 'true');
 
-      pageTransitionOverlay.style.setProperty('--click-x', absoluteX + '%');
-      pageTransitionOverlay.style.setProperty('--click-y', absoluteY + '%');
+      console.log('🔵 Sphère - Animation démarrée au point:', absoluteX + '%', absoluteY + '%');
 
-      // Rendre l'overlay visible
+      // PHASE 1 : Sphère bleue pleine qui grandit depuis le point de clic
+      pageTransitionOverlay.style.webkitMaskImage = 'none';
+      pageTransitionOverlay.style.maskImage = 'none';
+      pageTransitionOverlay.style.clipPath = 'circle(0% at ' + absoluteX + '% ' + absoluteY + '%)';
       pageTransitionOverlay.style.opacity = '1';
       pageTransitionOverlay.style.pointerEvents = 'all';
+      pageTransitionOverlay.style.transition = 'none';
 
-      // Animation du donut avec JS (plus fiable que CSS @keyframes avec variables)
-      var startTime = Date.now();
-      var duration = 1200;
-      var holeSize = 15;
-      var startRadius = 40;
-      var endRadius = 150 * Math.max(window.innerWidth, window.innerHeight) / 100;
+      // Forcer le reflow
+      void pageTransitionOverlay.offsetWidth;
 
-      function animateDonut() {
-        var elapsed = Date.now() - startTime;
-        var progress = Math.min(elapsed / duration, 1);
-        var easedProgress = 1 - Math.pow(1 - progress, 3); // ease-out cubic
+      // Lancer l'animation de croissance (plus rapide)
+      requestAnimationFrame(function() {
+        pageTransitionOverlay.style.transition = 'clip-path 0.4s cubic-bezier(0.22, 1, 0.36, 1)';
+        pageTransitionOverlay.style.clipPath = 'circle(150% at ' + absoluteX + '% ' + absoluteY + '%)';
+        console.log('🔵 Sphère - Animation lancée');
+      });
 
-        var currentRadius = startRadius + (endRadius - startRadius) * easedProgress;
-        var mask = 'radial-gradient(circle at ' + absoluteX + '% ' + absoluteY + '%, transparent 0, transparent ' + holeSize + 'px, black ' + holeSize + 'px, black ' + currentRadius + 'px)';
-
-        pageTransitionOverlay.style.webkitMaskImage = mask;
-        pageTransitionOverlay.style.maskImage = mask;
-
-        if (progress < 1) {
-          requestAnimationFrame(animateDonut);
-        } else {
-          // Animation terminée, naviguer
-          window.location.href = href;
-        }
-      }
-
-      requestAnimationFrame(animateDonut);
+      // Naviguer une fois que la sphère a rempli l'écran
+      setTimeout(function() {
+        console.log('🔵 Sphère - Navigation vers:', href);
+        window.location.href = href;
+      }, 450);
     });
   }
 
@@ -76,64 +122,53 @@
   function revealNewPage() {
     var hasTransition = sessionStorage.getItem('transitionInProgress');
 
+    // TOUJOURS faire l'animation de dé-zoom sur la nouvelle page
     if (hasTransition === 'true') {
-      // Récupérer la position du clic
+      // Récupérer la position du clic (ou utiliser le centre par défaut)
       var clickX = sessionStorage.getItem('transitionClickX') || '50%';
       var clickY = sessionStorage.getItem('transitionClickY') || '50%';
 
-      // Créer l'overlay si pas déjà fait
-      if (!pageTransitionOverlay) {
-        pageTransitionOverlay = document.createElement('div');
-        pageTransitionOverlay.className = 'page-transition-overlay';
-        document.body.appendChild(pageTransitionOverlay);
-      }
+      console.log('🍩 Donut - Révélation démarrée à:', clickX, clickY);
 
-      // Mettre l'overlay en plein écran bleu avec le donut (trou petit)
-      pageTransitionOverlay.style.opacity = '1';
-      pageTransitionOverlay.style.pointerEvents = 'all';
+      // L'overlay est déjà créé et visible avec le donut au début du script
+      // On lance juste l'animation du trou qui grandit
 
-      var holeSize = 15;
+      var holeSize = 20;
       var maxRadius = 150 * Math.max(window.innerWidth, window.innerHeight) / 100;
 
-      // État initial : grand donut (petit trou, grand extérieur)
-      var initialMask = 'radial-gradient(circle at ' + clickX + ' ' + clickY + ', transparent 0, transparent ' + holeSize + 'px, black ' + holeSize + 'px, black ' + maxRadius + 'px)';
-      pageTransitionOverlay.style.webkitMaskImage = initialMask;
-      pageTransitionOverlay.style.maskImage = initialMask;
+      // L'overlay a déjà le masque initial, on lance l'animation
+      var startTime = Date.now();
+      var duration = 400;
 
-      // Animation du trou qui grandit avec JS
-      setTimeout(function() {
-        var startTime = Date.now();
-        var duration = 1200;
+      function animateHole() {
+        var elapsed = Date.now() - startTime;
+        var progress = Math.min(elapsed / duration, 1);
+        var easedProgress = progress * progress; // quadratic ease-in
 
-        function animateHole() {
-          var elapsed = Date.now() - startTime;
-          var progress = Math.min(elapsed / duration, 1);
-          var easedProgress = 1 - Math.pow(1 - progress, 3); // ease-out cubic
+        var currentHole = holeSize + (maxRadius - holeSize) * easedProgress;
+        var mask = 'radial-gradient(circle at ' + clickX + ' ' + clickY + ', transparent 0, transparent ' + currentHole + 'px, black ' + currentHole + 'px, black ' + maxRadius + 'px)';
 
-          var currentHole = holeSize + (maxRadius - holeSize) * easedProgress;
-          var mask = 'radial-gradient(circle at ' + clickX + ' ' + clickY + ', transparent 0, transparent ' + currentHole + 'px, black ' + currentHole + 'px, black ' + maxRadius + 'px)';
+        pageTransitionOverlay.style.webkitMaskImage = mask;
+        pageTransitionOverlay.style.maskImage = mask;
 
-          pageTransitionOverlay.style.webkitMaskImage = mask;
-          pageTransitionOverlay.style.maskImage = mask;
+        if (progress < 1) {
+          requestAnimationFrame(animateHole);
+        } else {
+          console.log('🍩 Donut - Animation terminée');
+          // Animation terminée, nettoyer
+          pageTransitionOverlay.style.opacity = '0';
+          pageTransitionOverlay.style.webkitMaskImage = 'none';
+          pageTransitionOverlay.style.maskImage = 'none';
+          pageTransitionOverlay.style.pointerEvents = 'none';
 
-          if (progress < 1) {
-            requestAnimationFrame(animateHole);
-          } else {
-            // Animation terminée, nettoyer
-            pageTransitionOverlay.style.opacity = '0';
-            pageTransitionOverlay.style.webkitMaskImage = 'none';
-            pageTransitionOverlay.style.maskImage = 'none';
-            pageTransitionOverlay.style.pointerEvents = 'none';
-
-            // Nettoyer le sessionStorage
-            sessionStorage.removeItem('transitionClickX');
-            sessionStorage.removeItem('transitionClickY');
-            sessionStorage.removeItem('transitionInProgress');
-          }
+          // Nettoyer le sessionStorage
+          sessionStorage.removeItem('transitionClickX');
+          sessionStorage.removeItem('transitionClickY');
+          sessionStorage.removeItem('transitionInProgress');
         }
+      }
 
-        requestAnimationFrame(animateHole);
-      }, 100);
+      requestAnimationFrame(animateHole);
     }
   }
 
