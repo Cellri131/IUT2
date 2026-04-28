@@ -82,7 +82,7 @@ class CSSSetup:
         # Liste des fichiers à copier
         files_to_copy = [
             ('rb.css', True),           # (nom, obligatoire)
-            ('rb.js', True),
+            ('rb.js', True)
         ]
 
         for filename, required in files_to_copy:

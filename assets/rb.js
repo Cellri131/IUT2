@@ -12,6 +12,11 @@
     var themeLevel = 1;
 
     if (savedLevel) {
+      // Support du thème Matrix
+      if (savedLevel === 'matrix') {
+        document.documentElement.setAttribute('data-theme', 'matrix');
+        return;
+      }
       themeLevel = parseInt(savedLevel, 10);
     } else {
       var saved = localStorage.getItem('theme');
@@ -197,6 +202,11 @@
     var themeLevel = 1;
 
     if (savedLevel) {
+      // Support du thème Matrix
+      if (savedLevel === 'matrix') {
+        setTheme('matrix');
+        return;
+      }
       // Utiliser le niveau sauvegardé directement
       themeLevel = parseInt(savedLevel, 10);
     } else {
@@ -224,8 +234,25 @@
     var html = document.documentElement;
     var btn = document.querySelector('.theme-toggle');
 
+    // Support du thème Matrix (easter egg)
+    if (level === 'matrix') {
+      html.setAttribute('data-theme', 'matrix');
+      localStorage.setItem('themeLevel', 'matrix');
+      if (btn) {
+        btn.innerHTML = '<div class="theme-label" style="color: #00ff00;">Matrix</div>';
+      }
+      initMatrixEffect();
+      return;
+    }
+
     // Assurer que le niveau est entre 1 et 5
-    level = Math.max(1, Math.min(5, level));
+    level = parseInt(level, 10);
+    if (isNaN(level) || level < 1 || level > 5) {
+      level = 1; // Valeur par défaut si invalide
+    }
+
+    // Nettoyer l'effet Matrix si actif
+    cleanupMatrixEffect();
 
     // Appliquer le thème
     if (level === 1) {
@@ -260,8 +287,37 @@
   }
 
   function toggleTheme() {
-    var currentLevel = parseInt(localStorage.getItem('themeLevel') || '1', 10);
-    var nextLevel = currentLevel >= 5 ? 1 : currentLevel + 1;
+    var currentLevel = localStorage.getItem('themeLevel') || '1';
+
+    // Easter egg : si on est au niveau 5, activer Matrix
+    if (currentLevel === '5') {
+      setTheme('matrix');
+      return;
+    }
+
+    // Si on est en Matrix, revenir au niveau 1
+    if (currentLevel === 'matrix') {
+      setTheme(1);
+      return;
+    }
+
+    var level = parseInt(currentLevel, 10);
+    var nextLevel = level >= 5 ? 1 : level + 1;
+    setTheme(nextLevel);
+  }
+
+  function toggleThemeButton() {
+    // Version pour le bouton : cycle seulement entre 1 et 5, jamais Matrix
+    var currentLevel = localStorage.getItem('themeLevel') || '1';
+
+    // Si on est en Matrix, revenir au niveau 1
+    if (currentLevel === 'matrix') {
+      setTheme(1);
+      return;
+    }
+
+    var level = parseInt(currentLevel, 10);
+    var nextLevel = level >= 5 ? 1 : level + 1;
     setTheme(nextLevel);
   }
 
@@ -302,7 +358,7 @@
     var themeBtn = document.createElement('button');
     themeBtn.className = 'btn theme-toggle';
     themeBtn.title = 'Changer le thème (Alt+T) - Cliquer pour passer au niveau suivant';
-    themeBtn.onclick = toggleTheme;
+    themeBtn.onclick = toggleThemeButton; // Bouton ne donne pas accès à Matrix
 
     // Bouton rafraîchir
     var refreshBtn = document.createElement('button');
@@ -320,8 +376,19 @@
     document.body.insertBefore(toolbar, document.body.firstChild);
 
     // Appliquer le thème initial au bouton
-    var savedLevel = parseInt(localStorage.getItem('themeLevel') || '1', 10);
-    setTheme(savedLevel);
+    var savedLevel = localStorage.getItem('themeLevel') || '1';
+
+    // Nettoyer les valeurs corrompues
+    if (savedLevel !== 'matrix' && (isNaN(parseInt(savedLevel, 10)) || parseInt(savedLevel, 10) < 1 || parseInt(savedLevel, 10) > 5)) {
+      savedLevel = '1';
+      localStorage.setItem('themeLevel', '1');
+    }
+
+    if (savedLevel === 'matrix') {
+      setTheme('matrix');
+    } else {
+      setTheme(parseInt(savedLevel, 10));
+    }
   }
 
   // ========== Navigation Sidebar ==========
@@ -1217,5 +1284,97 @@
     '.refresh-button svg{transition:transform .3s ease}' +
     '.refresh-button:hover:not(.loading) svg{transform:rotate(45deg)}';
   document.head.appendChild(style);
+
+  // ========== Easter Egg : Matrix Effect ==========
+  var matrixCanvas = null;
+  var matrixCtx = null;
+  var matrixAnimationId = null;
+  var matrixColumns = [];
+
+  function initMatrixEffect() {
+    console.log('🟢 Matrix Mode Activated');
+    startMatrixAnimation();
+  }
+
+  function startMatrixAnimation() {
+    // Créer le canvas
+    matrixCanvas = document.createElement('canvas');
+    matrixCanvas.id = 'matrix-canvas';
+    document.body.insertBefore(matrixCanvas, document.body.firstChild);
+
+    matrixCtx = matrixCanvas.getContext('2d');
+    matrixCanvas.width = window.innerWidth;
+    matrixCanvas.height = window.innerHeight;
+
+    // Caractères Matrix classiques
+    var matrixChars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@#$%^&*()';
+    var fontSize = 16;
+    var columns = Math.floor(matrixCanvas.width / fontSize);
+    matrixColumns = [];
+
+    // Initialiser les colonnes
+    for (var i = 0; i < columns; i++) {
+      matrixColumns.push({
+        y: Math.random() * -100,
+        speed: Math.random() * 1 + 0.5
+      });
+    }
+
+    // Animation principale
+    function drawMatrix() {
+      // Fond noir avec traînée
+      matrixCtx.fillStyle = 'rgba(0, 0, 0, 0.05)';
+      matrixCtx.fillRect(0, 0, matrixCanvas.width, matrixCanvas.height);
+
+      matrixCtx.fillStyle = '#00ff00';
+      matrixCtx.font = fontSize + 'px monospace';
+
+      // Dessiner chaque colonne
+      for (var i = 0; i < matrixColumns.length; i++) {
+        var col = matrixColumns[i];
+        var char = matrixChars[Math.floor(Math.random() * matrixChars.length)];
+        var x = i * fontSize;
+
+        matrixCtx.fillText(char, x, col.y);
+
+        // Réinitialiser si en bas de l'écran
+        if (col.y > matrixCanvas.height && Math.random() > 0.975) {
+          col.y = 0;
+        }
+
+        col.y += col.speed;
+      }
+
+      matrixAnimationId = requestAnimationFrame(drawMatrix);
+    }
+
+    drawMatrix();
+
+    // Redimensionnement
+    window.addEventListener('resize', onResizeMatrix);
+  }
+
+  function onResizeMatrix() {
+    if (matrixCanvas) {
+      matrixCanvas.width = window.innerWidth;
+      matrixCanvas.height = window.innerHeight;
+    }
+  }
+
+  function cleanupMatrixEffect() {
+    if (matrixAnimationId) {
+      cancelAnimationFrame(matrixAnimationId);
+      matrixAnimationId = null;
+    }
+
+    if (matrixCanvas) {
+      matrixCanvas.remove();
+      matrixCanvas = null;
+      matrixCtx = null;
+    }
+
+    window.removeEventListener('resize', onResizeMatrix);
+    matrixColumns = [];
+  }
 
 })();

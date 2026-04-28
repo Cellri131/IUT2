@@ -7,14 +7,14 @@ télécharge les fichiers, et génère un fichier link.data
 qui répertorie les liens trouvés sur chaque page.
 
 Fonctionnalités avancées :
-- Authentification automatique (HTTP Basic + formulaires)
+- Authentification automatique (HTTP Basic + formulaires) [optionnelle]
 - Support des redirections meta
 - Mode PDF uniquement (optionnel)
 - Export JSON/CSV des résultats
 - Logging détaillé
 
 Usage :
-    python scripts/crawler.py <output_dir> <user> <password> [--pdf-only]
+    python scripts/crawler.py <start_url> <output_dir> [<user> <password>] [--pdf-only]
 """
 import os
 import re
@@ -50,9 +50,10 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # ── Configuration ───────────────────────────────────────────────
-START_URL = "https://diw.iut.univ-lehavre.fr/pedago/index.xml"
-BASE_DOMAIN = "diw.iut.univ-lehavre.fr"
-BASE_URL = "https://diw.iut.univ-lehavre.fr/"
+# Ces valeurs seront remplacées dynamiquement par les arguments
+START_URL = None
+BASE_DOMAIN = None
+BASE_URL = None
 
 # Patterns à exclure
 EXCLUDE_PATTERNS = [
@@ -263,10 +264,14 @@ def extract_links(content: str, base_url: str, pdf_only: bool = False) -> list:
     return sorted(links)
 
 
-def create_session(user: str, password: str) -> requests.Session:
-    """Crée une session HTTP avec auth et retry."""
+def create_session(user: str = None, password: str = None) -> requests.Session:
+    """Crée une session HTTP avec auth optionnelle et retry."""
     session = requests.Session()
-    session.auth = (user, password)
+
+    # Authentification optionnelle
+    if user and password:
+        session.auth = (user, password)
+
     session.verify = False
     session.headers.update({
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
@@ -342,8 +347,13 @@ def check_authentication_success(response) -> bool:
     return response.status_code == 200
 
 
-def attempt_authentication(session: requests.Session, user: str, password: str) -> bool:
+def attempt_authentication(session: requests.Session, user: str = None, password: str = None) -> bool:
     """Tente différentes méthodes d'authentification."""
+    # Si pas d'authentification requise
+    if not user or not password:
+        logger.info("Aucune authentification configurée")
+        return True
+
     logger.info("Tentative d'authentification...")
 
     try:
@@ -365,13 +375,16 @@ def attempt_authentication(session: requests.Session, user: str, password: str) 
         return False
 
 
-def crawl(start_url: str, output_dir: str, user: str, password: str, pdf_only: bool = False):
+def crawl(start_url: str, output_dir: str, user: str = None, password: str = None, pdf_only: bool = False):
     """Crawl récursif à partir de start_url avec fonctionnalités avancées."""
     session = create_session(user, password)
 
-    # Tenter l'authentification
-    if not attempt_authentication(session, user, password):
-        logger.warning("Authentification échouée, continue quand même...")
+    # Tenter l'authentification si credentials fournis
+    if user and password:
+        if not attempt_authentication(session, user, password):
+            logger.warning("Authentification échouée, continue quand même...")
+    else:
+        logger.info("Crawl sans authentification")
 
     visited = set()
     to_visit = [normalize_url(start_url)]
@@ -873,19 +886,38 @@ def generate_navigation_tree(output_dir: str):
 
 
 def main():
+    global START_URL, BASE_DOMAIN, BASE_URL
+
     # Vérifier les arguments
-    if len(sys.argv) < 4:
-        print(f"Usage : python {sys.argv[0]} <output_dir> <user> <password> [--pdf-only]")
+    if len(sys.argv) < 3:
+        print(f"Usage : python {sys.argv[0]} <start_url> <output_dir> [<user> <password>] [--pdf-only]")
         sys.exit(1)
 
-    output_dir = os.path.abspath(sys.argv[1])
-    user = sys.argv[2]
-    password = sys.argv[3]
+    start_url_arg = sys.argv[1]
+    output_dir = os.path.abspath(sys.argv[2])
+
+    # Authentification optionnelle
+    user = None
+    password = None
+    pdf_only = False
+
+    # Parser les arguments restants
+    remaining_args = sys.argv[3:]
+    if len(remaining_args) >= 2 and remaining_args[0] != '--pdf-only':
+        user = remaining_args[0]
+        password = remaining_args[1]
+        remaining_args = remaining_args[2:]
 
     # Vérifier l'option --pdf-only
-    pdf_only = False
-    if len(sys.argv) > 4 and sys.argv[4] == '--pdf-only':
+    if '--pdf-only' in remaining_args:
         pdf_only = True
+
+    # Extraire le domaine de base de l'URL
+    from urllib.parse import urlparse
+    parsed = urlparse(start_url_arg)
+    BASE_DOMAIN = parsed.netloc
+    BASE_URL = f"{parsed.scheme}://{parsed.netloc}/"
+    START_URL = start_url_arg
 
     os.makedirs(output_dir, exist_ok=True)
 
@@ -895,7 +927,12 @@ def main():
     else:
         print(f"[CRAWL] Crawl de {START_URL}")
 
+    print(f"    Domaine : {BASE_DOMAIN}")
     print(f"    Sortie : {output_dir}")
+    if user:
+        print(f"    Authentification : {user}")
+    else:
+        print(f"    Authentification : Non")
 
     try:
         # 1. Crawling
